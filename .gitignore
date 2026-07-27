@@ -26,3 +26,6 @@ Thumbs.db
 npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Documentacao operacional interna. Fica na maquina, fora do repositorio publico.
+GUIA_IMPLANTACAO.md

@@ -1,10 +1,11 @@
-import { ClipboardCheck, PawPrint, ShieldCheck, Stethoscope, UserCog, Users } from 'lucide-react'
+import { ClipboardCheck, KeyRound, Mail, PawPrint, ShieldCheck, Stethoscope, Trash2, UserCog, UserPlus, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useAppData } from '../AppContext'
 import { roleLabel, useAuth } from '../AuthContext'
 import { EmptyState } from '../components/EmptyState'
 import { Loading } from '../components/Loading'
 import { listProfiles, updateProfileRole } from '../services/repository'
+import { changeUserEmail, createUser, deleteUser, isUserAdminAvailable, resetUserPassword } from '../services/userAdmin'
 import type { Profile, UserRole } from '../types'
 import { formatDateTime, occurrenceLabel } from '../utils/format'
 
@@ -35,6 +36,14 @@ export function Admin() {
   const [error, setError] = useState<string | null>(null)
   const [authorFilter, setAuthorFilter] = useState('todos')
   const [kindFilter, setKindFilter] = useState('todos')
+
+  // Gestão de contas
+  const [showNewUser, setShowNewUser] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [newName, setNewName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -97,6 +106,68 @@ export function Admin() {
     return [...groups.entries()]
   }, [activity])
 
+  async function reloadProfiles() {
+    setProfiles(await listProfiles())
+  }
+
+  async function submitNewUser() {
+    setBusy(true)
+    setError(null)
+    setNotice(null)
+    try {
+      await createUser(newEmail, newPassword, newName)
+      setNotice(`Conta criada para ${newEmail}. Ela entra como operador.`)
+      setNewEmail(''); setNewPassword(''); setNewName(''); setShowNewUser(false)
+      await reloadProfiles()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível criar a conta.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function askResetPassword(item: Profile) {
+    const senha = window.prompt(`Nova senha para ${item.full_name || item.email}
+
+Mínimo de 8 caracteres.`)
+    if (!senha) return
+    setBusy(true); setError(null); setNotice(null)
+    try {
+      await resetUserPassword(item.id, senha)
+      setNotice('Senha alterada. Informe a nova senha à pessoa.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível alterar a senha.')
+    } finally { setBusy(false) }
+  }
+
+  async function askChangeEmail(item: Profile) {
+    const email = window.prompt(`Novo e-mail para ${item.full_name || item.email}`, item.email ?? '')
+    if (!email || email === item.email) return
+    setBusy(true); setError(null); setNotice(null)
+    try {
+      await changeUserEmail(item.id, email)
+      setNotice('E-mail alterado. A pessoa passa a entrar com o novo endereço.')
+      await reloadProfiles()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível alterar o e-mail.')
+    } finally { setBusy(false) }
+  }
+
+  async function askDelete(item: Profile) {
+    const nome = item.full_name || item.email
+    if (!window.confirm(`Excluir a conta de ${nome}?
+
+A pessoa perde o acesso imediatamente. Os registros que ela já fez continuam no histórico.`)) return
+    setBusy(true); setError(null); setNotice(null)
+    try {
+      await deleteUser(item.id)
+      setNotice('Conta excluída.')
+      await reloadProfiles()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível excluir a conta.')
+    } finally { setBusy(false) }
+  }
+
   async function changeRole(id: string, role: UserRole) {
     setSavingId(id)
     setError(null)
@@ -134,6 +205,7 @@ export function Admin() {
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
+      {notice && <div className="alert alert-success">{notice}</div>}
 
       {tab === 'atividade' && (
         <>
@@ -210,13 +282,38 @@ export function Admin() {
         <section className="panel">
           <div className="panel-head">
             <div><span className="eyebrow">Contas de acesso</span><h2>Equipe da fazenda</h2></div>
-            <strong className="selection-count">{profiles.length} pessoas</strong>
+            {isUserAdminAvailable && !showNewUser && (
+              <button type="button" className="button button-primary" onClick={() => setShowNewUser(true)}>
+                <UserPlus size={18} /> Nova conta
+              </button>
+            )}
           </div>
 
           <p className="panel-note">
             O operador acessa o rebanho, os documentos e os registros do dia a dia. O administrador acessa também esta tela.
-            Novas contas são criadas no Supabase e entram como operador.
+            Toda conta nova entra como operador.
           </p>
+
+          {showNewUser && (
+            <div className="new-user-form">
+              <div className="form-grid">
+                <label className="field"><span>Nome da pessoa</span><input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Exemplo: João da Silva" autoFocus /></label>
+                <label className="field required"><span>E-mail de acesso</span><input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="joao@fazenda.com.br" /></label>
+                <label className="field required"><span>Senha provisória</span><input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo de 8 caracteres" /></label>
+              </div>
+              <small className="panel-note">A senha aparece em texto para você conseguir anotar e repassar. Peça para a pessoa trocá-la depois.</small>
+              <div className="modal-actions">
+                <button type="button" className="button button-ghost" onClick={() => setShowNewUser(false)}>Cancelar</button>
+                <button type="button" className="button button-primary" disabled={busy || !newEmail.trim() || newPassword.length < 8} onClick={() => void submitNewUser()}>
+                  {busy ? 'Criando' : 'Criar conta'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!isUserAdminAvailable && (
+            <p className="panel-note">Criar e excluir contas exige o Supabase configurado. Em modo de demonstração só é possível visualizar.</p>
+          )}
 
           {loadingProfiles ? <Loading /> : profiles.length ? (
             <ul className="team-list">
@@ -227,11 +324,10 @@ export function Admin() {
                   <li key={item.id}>
                     <div className="team-avatar">{(item.full_name || item.email || '?').trim().charAt(0).toUpperCase()}</div>
                     <div className="team-main">
-                      <strong>{item.full_name || 'Conta sem nome'}{isSelf && <span className="team-self">você</span>}</strong>
+                      <strong>{item.full_name || 'Conta sem nome'}<span className={`role-badge role-${item.role}`}>{roleLabel[item.role]}</span>{isSelf && <span className="team-self">você</span>}</strong>
                       <span>{item.email || 'E-mail não informado'}</span>
                     </div>
                     <div className="team-role">
-                      <span className={`role-badge role-${item.role}`}>{roleLabel[item.role]}</span>
                       <select
                         value={item.role}
                         disabled={savingId === item.id || isLastAdmin}
@@ -241,6 +337,15 @@ export function Admin() {
                         <option value="operador">Operador</option>
                         <option value="administrador">Administrador</option>
                       </select>
+                      {isUserAdminAvailable && (
+                        <div className="team-actions">
+                          <button type="button" className="icon-button" title="Trocar a senha" disabled={busy} onClick={() => void askResetPassword(item)}><KeyRound size={17} /></button>
+                          <button type="button" className="icon-button" title="Trocar o e-mail" disabled={busy} onClick={() => void askChangeEmail(item)}><Mail size={17} /></button>
+                          {!isSelf && (
+                            <button type="button" className="icon-button danger" title="Excluir a conta" disabled={busy} onClick={() => void askDelete(item)}><Trash2 size={17} /></button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </li>
                 )

@@ -1,7 +1,8 @@
-import { Filter, Plus, Search, SlidersHorizontal } from 'lucide-react'
+import { Filter, Plus, Search, SlidersHorizontal, Upload } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppData } from '../AppContext'
+import { useAuth } from '../AuthContext'
 import { AnimalCard } from '../components/AnimalCard'
 import { EmptyState } from '../components/EmptyState'
 import { Loading } from '../components/Loading'
@@ -10,6 +11,7 @@ import { statusLabel } from '../utils/format'
 
 export function Animals() {
   const { animals, loading } = useAppData()
+  const { isAdmin } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const initialStatus = params.get('status') === 'atencao' ? 'atencao' : 'todos'
@@ -34,7 +36,12 @@ export function Animals() {
     <>
       <div className="page-heading">
         <div><span className="eyebrow">Cadastro do rebanho</span><h1>Animais</h1><p>{filtered.length} de {animals.length} registros exibidos</p></div>
-        <button className="button button-primary" onClick={() => navigate('/animais/novo')}><Plus size={18} /> Cadastrar animal</button>
+        <div className="heading-actions">
+          {isAdmin && (
+            <button className="button button-secondary" onClick={() => navigate('/animais/importar')}><Upload size={18} /> Importar planilha</button>
+          )}
+          <button className="button button-primary" onClick={() => navigate('/animais/novo')}><Plus size={18} /> Cadastrar animal</button>
+        </div>
       </div>
 
       <div className="filters-panel">

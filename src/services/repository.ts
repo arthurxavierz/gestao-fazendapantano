@@ -88,6 +88,67 @@ export async function saveAnimal(input: Partial<Animal> & Pick<Animal, 'number'>
   return data as Animal
 }
 
+/**
+ * Grava vários animais de uma vez, vindos da planilha importada.
+ * Usa upsert pelo número, que é único, então reimportar a mesma planilha
+ * atualiza em vez de duplicar. Vai em blocos para não estourar o limite da API.
+ */
+export async function saveAnimalsBatch(
+  input: (Partial<Animal> & Pick<Animal, 'number'>)[]
+): Promise<{ saved: number; failed: number }> {
+  if (!input.length) return { saved: 0, failed: 0 }
+
+  if (!isSupabaseConfigured || !supabase) {
+    const animals = readLocal<Animal[]>(KEYS.animals, demoAnimals)
+    const byNumber = new Map(animals.map((item) => [item.number, item]))
+    const now = new Date().toISOString()
+
+    for (const item of input) {
+      const existing = byNumber.get(item.number)
+      byNumber.set(item.number, {
+        ...(existing ?? {
+          id: crypto.randomUUID(),
+          number: item.number,
+          status: 'normal' as const,
+          sex: 'nao_informado' as const,
+          created_at: now
+        }),
+        ...item,
+        updated_at: now
+      } as Animal)
+    }
+    writeLocal(KEYS.animals, [...byNumber.values()])
+    return { saved: input.length, failed: 0 }
+  }
+
+  const rows = input.map((item) => ({
+    number: item.number.trim(),
+    breed: item.breed ?? null,
+    coat: item.coat ?? null,
+    sex: item.sex ?? 'nao_informado',
+    birth_date: item.birth_date || null,
+    weight: item.weight ?? null,
+    lot: item.lot ?? null,
+    origin: item.origin ?? null,
+    status: item.status ?? 'normal',
+    notes: item.notes ?? null,
+    updated_at: new Date().toISOString()
+  }))
+
+  let saved = 0
+  let failed = 0
+  const chunkSize = 200
+
+  for (let start = 0; start < rows.length; start += chunkSize) {
+    const chunk = rows.slice(start, start + chunkSize)
+    const { error } = await supabase.from('animals').upsert(chunk, { onConflict: 'number' })
+    if (error) failed += chunk.length
+    else saved += chunk.length
+  }
+
+  return { saved, failed }
+}
+
 export async function removeAnimal(id: string) {
   if (!isSupabaseConfigured || !supabase) {
     const animals = readLocal<Animal[]>(KEYS.animals, demoAnimals)

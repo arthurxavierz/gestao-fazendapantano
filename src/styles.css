@@ -540,3 +540,63 @@ p { color: var(--muted); line-height: 1.6; }
   .photo-viewer-button { padding: 8px 12px; font-size: .76rem; }
   .photo-viewer-stage.is-zoomed img { width: 320%; }
 }
+
+/* ===== Importação de planilha ===== */
+.heading-actions { display: flex; gap: 9px; flex-wrap: wrap; }
+
+.import-dropzone { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 34px 20px; border: 2px dashed #cbd5cc; border-radius: 15px; background: var(--green-50); text-align: center; cursor: pointer; transition: .18s ease; }
+.import-dropzone:hover { border-color: var(--green-700); background: #e7efe9; }
+.import-dropzone svg { color: var(--green-700); }
+.import-dropzone strong { color: var(--green-950); font-size: 1rem; overflow-wrap: anywhere; }
+.import-dropzone span { color: var(--muted); font-size: .8rem; }
+.import-dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+.mapping-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 15px; }
+.mapping-sample { color: var(--muted); font-size: .72rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.import-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+.import-summary article { display: flex; align-items: center; gap: 11px; padding: 15px; border: 1px solid var(--border); border-radius: 13px; background: white; }
+.import-summary svg { width: 22px; height: 22px; color: var(--muted); flex-shrink: 0; }
+.import-summary strong { display: block; font-family: 'Newsreader', Georgia, serif; font-size: 1.7rem; line-height: 1; color: var(--green-950); }
+.import-summary span { color: var(--muted); font-size: .74rem; }
+.import-summary .is-ok { border-color: #bcd6c4; background: var(--green-50); }
+.import-summary .is-ok svg { color: var(--green-700); }
+.import-summary .is-bad { border-color: #ebcbc7; background: var(--red-soft); }
+.import-summary .is-bad svg { color: var(--red); }
+
+.import-overwrite { align-items: flex-start; gap: 9px; margin-bottom: 16px; padding: 12px 14px; border-radius: 11px; background: var(--yellow-soft); color: var(--yellow); font-size: .82rem; min-height: 0; }
+.import-overwrite input { margin-top: 2px; }
+
+.import-problems { margin-bottom: 18px; padding: 14px; border: 1px solid #ebcbc7; border-radius: 12px; background: var(--red-soft); }
+.import-problems strong { display: block; color: #8d3933; font-size: .86rem; margin-bottom: 8px; }
+.import-problems ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.import-problems li { color: #8d3933; font-size: .79rem; }
+.import-problems li span { display: inline-block; min-width: 74px; font-weight: 700; }
+.import-problems small { display: block; margin-top: 8px; color: #8d3933; font-size: .74rem; }
+
+.import-preview-table { overflow-x: auto; margin-bottom: 18px; border: 1px solid var(--border); border-radius: 12px; }
+.import-preview-table table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: .82rem; }
+.import-preview-table th { text-align: left; padding: 10px 12px; background: var(--gray-soft); color: var(--muted); font-size: .72rem; font-weight: 700; }
+.import-preview-table td { padding: 10px 12px; border-top: 1px solid var(--border); color: var(--green-950); }
+.import-preview-table small { display: block; padding: 9px 12px; color: var(--muted); font-size: .74rem; }
+
+/* ===== Gestão de contas ===== */
+.new-user-form { margin-bottom: 20px; padding: 18px; border: 1px solid var(--gold); border-radius: 14px; background: #fffdf5; }
+.new-user-form .modal-actions { margin-top: 14px; }
+.team-actions { display: flex; gap: 4px; }
+.team-actions .icon-button { width: 34px; height: 34px; border-radius: 9px; }
+.team-actions .icon-button:hover { background: var(--gray-soft); }
+.team-actions .icon-button.danger { color: var(--red); }
+.team-actions .icon-button.danger:hover { background: var(--red-soft); }
+.team-main strong .role-badge { margin-left: 2px; }
+.alert-success { background: var(--green-50); color: var(--green-800); border: 1px solid #bcd6c4; }
+
+@media (max-width: 640px) {
+  .heading-actions { display: grid; width: 100%; }
+  .heading-actions .button { width: 100%; justify-content: center; }
+  .mapping-grid { grid-template-columns: 1fr; }
+  .import-summary { grid-template-columns: 1fr; }
+  .import-summary article { padding: 12px; }
+  .team-role { flex-wrap: wrap; }
+  .team-actions { width: 100%; justify-content: flex-end; }
+}

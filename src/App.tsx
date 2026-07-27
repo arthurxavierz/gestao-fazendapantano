@@ -9,6 +9,7 @@ import { AnimalForm } from './pages/AnimalForm'
 import { Animals } from './pages/Animals'
 import { Counts } from './pages/Counts'
 import { Dashboard } from './pages/Dashboard'
+import { ImportAnimals } from './pages/ImportAnimals'
 import { Login } from './pages/Login'
 import { Occurrences } from './pages/Occurrences'
 import { Reports } from './pages/Reports'
@@ -41,6 +42,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="animais" element={<Animals />} />
           <Route path="animais/novo" element={<AnimalForm />} />
+          <Route path="animais/importar" element={<AdminOnly><ImportAnimals /></AdminOnly>} />
           <Route path="animais/:id" element={<AnimalDetail />} />
           <Route path="animais/:id/editar" element={<AnimalForm />} />
           <Route path="contagens" element={<Counts />} />
