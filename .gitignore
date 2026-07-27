@@ -1,0 +1,28 @@
+node_modules
+dist
+dist-ssr
+
+# Artefatos do compilador TypeScript
+*.tsbuildinfo
+
+# Variaveis de ambiente. Nunca versionar: contem as chaves do projeto.
+.env
+.env.*
+!.env.example
+
+# Artefatos da CLI do Supabase (guardam o ref do projeto e credenciais locais)
+supabase/.temp
+supabase/.branches
+supabase/.env
+
+# Sistema operacional e editores
+.DS_Store
+Thumbs.db
+*.local
+.vscode/*
+!.vscode/extensions.json
+
+# Logs
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
