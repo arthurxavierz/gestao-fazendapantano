@@ -156,7 +156,7 @@ export function AnimalForm() {
               <strong>Foto do animal</strong>
               <p>Use a câmera do celular ou selecione uma imagem da galeria.</p>
               <div className="photo-buttons">
-                <label className="button button-secondary file-button"><ImagePlus size={18} /> Escolher foto<input type="file" accept="image/*" capture="environment" onChange={selectPhoto} /></label>
+                <label className="button button-secondary file-button"><ImagePlus size={18} /> Escolher foto<input type="file" accept="image/*" onChange={selectPhoto} /></label>
                 {isAiVisionConfigured && form.photo_url && (
                   <button type="button" className="button button-secondary" onClick={() => void analyzePhoto()} disabled={analyzing}>
                     <Sparkles size={18} /> {analyzing ? 'Analisando foto' : 'Ler brinco com IA'}
