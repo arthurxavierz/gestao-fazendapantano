@@ -600,3 +600,89 @@ p { color: var(--muted); line-height: 1.6; }
   .team-role { flex-wrap: wrap; }
   .team-actions { width: 100%; justify-content: flex-end; }
 }
+
+/* ============================================================
+   Descarte, reprodução, manejos e leitura de fichas
+   ============================================================ */
+.status-descarte { color: #8d3320; background: #f6e2da; }
+.summary-line.descarte { background: #b5623f; }
+
+.select-inline-label { color: var(--muted); font-size: .74rem; font-weight: 700; white-space: nowrap; }
+.filters-panel.triple { grid-template-columns: 1fr 220px 210px; }
+.button.danger, .text-button.danger { color: var(--red); }
+.button.danger:hover { background: var(--red-soft); }
+.panel-note { color: var(--muted); font-size: .84rem; margin: 4px 0 14px; }
+
+/* Reprodução */
+.breeding-list { display: grid; gap: 10px; }
+.breeding-row { display: grid; grid-template-columns: 42px 1fr auto auto; align-items: center; gap: 16px; background: var(--paper); border: 1px solid var(--border); border-radius: 15px; padding: 14px 16px; }
+.breeding-row.is-cull { border-color: #e6b6a6; background: #fdf3ef; }
+.breeding-row .animal-number-mini { border: 0; cursor: pointer; }
+.breeding-main strong { color: var(--green-950); }
+.breeding-main > span { display: block; color: var(--muted); font-size: .77rem; margin: 2px 0 8px; }
+.attempt-dots { display: flex; gap: 6px; }
+.attempt-dot { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .72rem; font-weight: 800; border: 1px solid #d5ddd6; color: #8a938b; background: #f1f4f0; }
+.attempt-dot.dot-prenha { background: #e3eee6; color: #2f6746; border-color: #b7cbbb; }
+.attempt-dot.dot-vazia { background: var(--red-soft); color: #993d36; border-color: #ebcbc7; }
+.attempt-dot.dot-pendente { background: var(--yellow-soft); color: var(--yellow); border-color: #e8d6a8; }
+.breeding-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* Manejos */
+.management-list { display: grid; }
+.management-list article { display: grid; grid-template-columns: 48px 1fr auto auto; align-items: center; gap: 14px; padding: 15px 0; border-bottom: 1px solid #e8eae7; }
+.management-list article:last-child { border-bottom: 0; }
+.management-icon { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; background: var(--green-50); color: var(--green-700); }
+.management-main strong { display: block; color: var(--green-950); }
+.management-main > span { display: block; color: var(--green-700); font-size: .77rem; font-weight: 700; margin: 3px 0; }
+.management-main small { display: block; color: var(--muted); font-size: .72rem; }
+.management-main .management-products { color: #7c857d; margin-bottom: 2px; }
+.management-count { text-align: right; }
+.management-count strong { display: block; font-family: 'Newsreader', Georgia, serif; font-size: 1.7rem; color: var(--green-950); }
+.management-count span { display: block; color: var(--muted); font-size: .7rem; }
+.management-count small { display: block; color: var(--green-700); font-size: .68rem; margin-top: 2px; }
+
+/* Editor de produtos e participantes */
+.products-editor { margin: 4px 0 15px; }
+.field-label { display: block; color: var(--green-950); font-size: .82rem; font-weight: 700; margin-bottom: 8px; }
+.product-row { display: grid; grid-template-columns: 1.4fr 1fr auto; gap: 8px; margin-bottom: 8px; }
+.product-row input { border: 1px solid #cfd6d0; background: white; border-radius: 10px; padding: 10px 12px; min-height: 44px; color: var(--green-950); }
+.participants-preview { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 15px; }
+.participant-chip { background: var(--green-50); color: var(--green-900); padding: 5px 9px; border-radius: 8px; font-size: .74rem; font-weight: 700; }
+
+/* Leitura de ficha (importação) */
+.sheet-import { width: min(860px, 100%); }
+.sheet-hint { color: var(--muted); font-size: .85rem; margin-bottom: 14px; }
+.import-dropzone { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 170px; border: 2px dashed #cdd5ce; border-radius: 14px; background: #f6f8f4; color: var(--muted); text-align: center; padding: 18px; cursor: pointer; overflow: hidden; }
+.import-dropzone strong { color: var(--green-950); }
+.import-dropzone span { font-size: .78rem; }
+.import-dropzone img { max-width: 100%; max-height: 300px; border-radius: 10px; }
+.sheet-upload-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.sheet-reading { display: flex; align-items: center; gap: 10px; min-height: 120px; justify-content: center; color: var(--muted); }
+.spinner { width: 18px; height: 18px; border: 2px solid #ccd4cd; border-top-color: var(--green-800); border-radius: 50%; animation: spin .8s linear infinite; }
+.sheet-review-note { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 10px; background: var(--yellow-soft); color: var(--yellow); font-size: .8rem; line-height: 1.4; margin-bottom: 14px; }
+.review-table { display: grid; gap: 6px; max-height: 46vh; overflow-y: auto; }
+.review-row { display: grid; grid-template-columns: 1.4fr .8fr 1fr 1.2fr; gap: 8px; align-items: center; }
+.review-head { color: var(--muted); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: 0 2px; }
+.review-row:not(.review-head) { background: #f6f8f4; border: 1px solid #e6eae4; border-radius: 10px; padding: 8px; }
+.review-row.is-unmatched { background: #fdf3ef; border-color: #e6b6a6; }
+.review-animal { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.review-animal select { border: 1px solid #cfd6d0; border-radius: 8px; padding: 8px; background: white; color: var(--green-950); min-width: 0; width: 100%; }
+.review-check { display: inline-flex; align-items: center; gap: 6px; color: var(--green-900); font-size: .78rem; font-weight: 700; }
+.review-value, .review-obs { border: 1px solid #cfd6d0; border-radius: 8px; padding: 8px; background: white; color: var(--green-950); min-width: 0; }
+.sheet-review-summary { color: var(--green-700); font-size: .82rem; font-weight: 700; margin: 12px 0; }
+
+/* Genealogia */
+.children-list { display: grid; gap: 8px; }
+.child-row { display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 14px; background: #f6f8f4; border: 1px solid #e6eae4; border-radius: 12px; padding: 10px 12px; }
+.child-row strong { display: block; color: var(--green-950); }
+.child-row span { display: block; color: var(--muted); font-size: .76rem; }
+
+@media (max-width: 760px) {
+  .filters-panel.triple { grid-template-columns: 1fr; }
+  .breeding-row { grid-template-columns: 42px 1fr; }
+  .breeding-status, .breeding-actions { grid-column: 2; justify-self: flex-start; }
+  .management-list article { grid-template-columns: 46px 1fr auto; }
+  .review-row { grid-template-columns: 1fr 1fr; }
+  .review-obs { grid-column: 1 / -1; }
+  .sheet-review-note { align-items: flex-start; }
+}

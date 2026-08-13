@@ -1,6 +1,6 @@
 import { ArrowLeft, Camera, Check, ImagePlus, Maximize2, Save, Sparkles } from 'lucide-react'
 import { ChangeEvent, FormEvent, useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAppData } from '../AppContext'
 import { AiSuggestionPanel } from '../components/AiSuggestionPanel'
 import { PhotoViewer } from '../components/PhotoViewer'
@@ -21,6 +21,7 @@ const emptyForm: Partial<Animal> & Pick<Animal, 'number'> = {
   lot: '',
   origin: '',
   notes: '',
+  mother_id: null,
   photo_url: null
 }
 
@@ -29,8 +30,11 @@ type AiField = 'number' | 'coat' | 'breed'
 
 export function AnimalForm() {
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
   const { animals, upsertAnimal } = useAppData()
   const navigate = useNavigate()
+  // Fêmeas ativas servem como possíveis mães (a genealogia liga o bezerro à matriz).
+  const mothers = animals.filter((item) => item.sex === 'femea' && item.id !== id && item.status !== 'morto' && item.status !== 'vendido')
   const [form, setForm] = useState(emptyForm)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
@@ -45,10 +49,26 @@ export function AnimalForm() {
   const [viewingPhoto, setViewingPhoto] = useState(false)
 
   useEffect(() => {
-    if (!id) return
-    const animal = animals.find((item) => item.id === id)
-    if (animal) setForm(animal)
-  }, [id, animals])
+    if (id) {
+      const animal = animals.find((item) => item.id === id)
+      if (animal) setForm(animal)
+      return
+    }
+    // Novo cadastro vindo do fluxo "cadastrar bezerro": já chega com a mãe e a
+    // data de nascimento sugeridas, e a origem marcada como nascido na fazenda.
+    const motherId = searchParams.get('mae')
+    if (motherId) {
+      const mother = animals.find((item) => item.id === motherId)
+      setForm((current) => ({
+        ...current,
+        mother_id: motherId,
+        origin: 'Nascido na fazenda',
+        breed: current.breed || mother?.breed || '',
+        birth_date: searchParams.get('nascimento') || current.birth_date,
+        birth_date_approximate: true
+      }))
+    }
+  }, [id, animals, searchParams])
 
   function update<K extends keyof Animal>(key: K, value: Animal[K]) {
     setForm((current) => ({ ...current, [key]: value }))
@@ -110,6 +130,7 @@ export function AnimalForm() {
         id,
         number: form.number,
         photo_url: photoUrl,
+        mother_id: form.mother_id || null,
         coat: formatCoat(form.coat) || null,
         weight: form.weight ? Number(form.weight) : null,
         // Guarda o que a IA sugeriu e o que sobreviveu à revisão, para medir o acerto depois.
@@ -219,7 +240,7 @@ export function AnimalForm() {
               <span>Raça {aiBadge('breed')}</span>
               <input value={form.breed || ''} onChange={(e) => update('breed', e.target.value)} placeholder="Exemplo: Nelore" />
             </label>
-            <label className="field"><span>Situação atual</span><select value={form.status} onChange={(e) => update('status', e.target.value as AnimalStatus)}><option value="normal">Normal</option><option value="observacao">Em observação</option><option value="doente">Doente</option><option value="morto">Morto</option><option value="vendido">Vendido</option></select></label>
+            <label className="field"><span>Situação atual</span><select value={form.status} onChange={(e) => update('status', e.target.value as AnimalStatus)}><option value="normal">Normal</option><option value="observacao">Em observação</option><option value="doente">Doente</option><option value="descarte">Para descarte</option><option value="morto">Morto</option><option value="vendido">Vendido</option></select></label>
           </div>
         </section>
 
@@ -230,6 +251,7 @@ export function AnimalForm() {
             <label className="field"><span>Peso atual em kg</span><input type="number" min="0" step="0.1" value={form.weight ?? ''} onChange={(e) => update('weight', e.target.value ? Number(e.target.value) : null)} placeholder="Exemplo: 412" /></label>
             <label className="field"><span>Local ou lote atual</span><input value={form.lot || ''} onChange={(e) => update('lot', e.target.value)} placeholder="Exemplo: Curral 2" /></label>
             <label className="field"><span>Origem</span><input value={form.origin || ''} onChange={(e) => update('origin', e.target.value)} placeholder="Nascido na fazenda ou comprado" /></label>
+            <label className="field"><span>Mãe (matriz)</span><select value={form.mother_id || ''} onChange={(e) => update('mother_id', e.target.value || null)}><option value="">Sem vínculo</option>{mothers.map((mother) => <option key={mother.id} value={mother.id}>{mother.number}{mother.breed ? ` — ${mother.breed}` : ''}</option>)}</select></label>
             <label className="checkbox-field"><input type="checkbox" checked={Boolean(form.birth_date_approximate)} onChange={(e) => update('birth_date_approximate', e.target.checked)} /><span><Check size={16} /> Data de nascimento aproximada</span></label>
           </div>
           <label className="field"><span>Observações</span><textarea rows={4} value={form.notes || ''} onChange={(e) => update('notes', e.target.value)} placeholder="Anote somente o que precisa ficar registrado." /></label>

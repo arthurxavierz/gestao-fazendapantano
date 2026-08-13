@@ -1,6 +1,6 @@
-import { ArrowLeft, Camera, Edit3, FileDown, Maximize2, Printer, Scale, Stethoscope, Trash2 } from 'lucide-react'
+import { ArrowLeft, Baby, Camera, Edit3, FileDown, Maximize2, Printer, Scale, Stethoscope, Trash2 } from 'lucide-react'
 import { FormEvent, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAppData } from '../AppContext'
 import { EmptyState } from '../components/EmptyState'
 import { PhotoViewer } from '../components/PhotoViewer'
@@ -25,6 +25,9 @@ export function AnimalDetail() {
     () => occurrences.filter((item) => item.animal_id === id),
     [occurrences, id]
   )
+
+  const mother = useMemo(() => animals.find((item) => item.id === animal?.mother_id), [animals, animal])
+  const children = useMemo(() => animals.filter((item) => item.mother_id === id), [animals, id])
 
   if (!animal) return <EmptyState icon={Stethoscope} title="Animal não encontrado" text="O cadastro pode ter sido removido ou ainda não foi carregado." />
 
@@ -81,6 +84,9 @@ export function AnimalDetail() {
         <div className="animal-profile-actions">
           <button className="button button-primary" onClick={() => setShowOccurrence(true)}><Stethoscope size={18} /> Registrar situação</button>
           <button className="button button-secondary" onClick={() => navigate(`/animais/${animal.id}/editar`)}><Edit3 size={18} /> Editar</button>
+          {animal.sex === 'femea' && (
+            <button className="button button-secondary" onClick={() => navigate(`/animais/novo?mae=${animal.id}&nascimento=${new Date().toISOString().slice(0, 10)}`)}><Baby size={18} /> Cadastrar bezerro</button>
+          )}
         </div>
       </section>
 
@@ -96,6 +102,7 @@ export function AnimalDetail() {
             <div><dt>Peso atual</dt><dd><Scale size={16} /> {formatWeight(animal.weight)}</dd></div>
             <div><dt>Local ou lote</dt><dd>{animal.lot || 'Não informado'}</dd></div>
             <div><dt>Origem</dt><dd>{animal.origin || 'Não informado'}</dd></div>
+            <div><dt>Mãe</dt><dd>{mother ? <Link to={`/animais/${mother.id}`}>Animal {mother.number}</Link> : 'Não informado'}</dd></div>
             <div className="detail-notes"><dt>Observações</dt><dd>{animal.notes || 'Sem observações cadastradas.'}</dd></div>
           </dl>
         </section>
@@ -109,6 +116,23 @@ export function AnimalDetail() {
           </div>
         </section>
       </div>
+
+      {animal.sex === 'femea' && (
+        <section className="panel">
+          <div className="panel-head"><div><span className="eyebrow">Genealogia</span><h2>Crias desta matriz</h2></div><button className="button button-secondary" onClick={() => navigate(`/animais/novo?mae=${animal.id}&nascimento=${new Date().toISOString().slice(0, 10)}`)}><Baby size={18} /> Novo bezerro</button></div>
+          {children.length ? (
+            <div className="children-list">
+              {children.map((child) => (
+                <Link key={child.id} to={`/animais/${child.id}`} className="child-row">
+                  <div className="animal-number-mini">{child.number}</div>
+                  <div><strong>Animal {child.number}</strong><span>{child.breed || 'Raça não informada'}{child.birth_date ? ` · ${formatDate(child.birth_date)}` : ''}</span></div>
+                  <StatusBadge status={child.status} />
+                </Link>
+              ))}
+            </div>
+          ) : <p className="muted">Nenhuma cria vinculada a esta matriz ainda.</p>}
+        </section>
+      )}
 
       <section className="panel occurrence-history">
         <div className="panel-head"><div><span className="eyebrow">Acompanhamento</span><h2>Registros deste animal</h2></div><button className="button button-secondary" onClick={() => setShowOccurrence(true)}>Novo registro</button></div>

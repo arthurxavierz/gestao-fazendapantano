@@ -11,8 +11,10 @@ import { Counts } from './pages/Counts'
 import { Dashboard } from './pages/Dashboard'
 import { ImportAnimals } from './pages/ImportAnimals'
 import { Login } from './pages/Login'
+import { Management } from './pages/Management'
 import { Occurrences } from './pages/Occurrences'
 import { Reports } from './pages/Reports'
+import { Reproduction } from './pages/Reproduction'
 
 function ProtectedLayout() {
   const { loading, authenticated } = useAuth()
@@ -45,6 +47,8 @@ export default function App() {
           <Route path="animais/importar" element={<AdminOnly><ImportAnimals /></AdminOnly>} />
           <Route path="animais/:id" element={<AnimalDetail />} />
           <Route path="animais/:id/editar" element={<AnimalForm />} />
+          <Route path="reproducao" element={<Reproduction />} />
+          <Route path="manejos" element={<Management />} />
           <Route path="contagens" element={<Counts />} />
           <Route path="ocorrencias" element={<Occurrences />} />
           <Route path="relatorios" element={<Reports />} />

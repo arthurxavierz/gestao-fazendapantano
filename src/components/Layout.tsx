@@ -1,4 +1,4 @@
-import { ClipboardCheck, FileText, Home, List, LogOut, Menu, Plus, ShieldCheck, Stethoscope, X } from 'lucide-react'
+import { ClipboardCheck, FileText, HeartHandshake, Home, List, LogOut, Menu, Plus, ShieldCheck, Stethoscope, Syringe, X } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { roleLabel, useAuth } from '../AuthContext'
@@ -8,10 +8,15 @@ import { Brand } from './Brand'
 const baseLinks = [
   { to: '/', label: 'Início', icon: Home },
   { to: '/animais', label: 'Animais', icon: List },
-  { to: '/contagens', label: 'Contagens', icon: ClipboardCheck },
+  { to: '/reproducao', label: 'Reprodução', icon: HeartHandshake },
+  { to: '/manejos', label: 'Manejos', icon: Syringe },
   { to: '/ocorrencias', label: 'Ocorrências', icon: Stethoscope },
+  { to: '/contagens', label: 'Contagens', icon: ClipboardCheck },
   { to: '/relatorios', label: 'Documentos', icon: FileText }
 ]
+
+// Barra inferior do celular: os cinco destinos mais usados no dia a dia.
+const bottomOrder = ['/', '/animais', '/reproducao', '/manejos', '/relatorios']
 
 const adminLink = { to: '/administracao', label: 'Administração', icon: ShieldCheck }
 
@@ -22,7 +27,9 @@ export function Layout() {
 
   const links = isAdmin ? [...baseLinks, adminLink] : baseLinks
   // No celular a barra inferior comporta cinco itens com conforto.
-  const bottomLinks = isAdmin ? [...baseLinks.slice(0, 4), adminLink] : baseLinks
+  const bottomLinks = bottomOrder
+    .map((to) => baseLinks.find((link) => link.to === to))
+    .filter((link): link is (typeof baseLinks)[number] => Boolean(link))
 
   async function handleSignOut() {
     await signOut()

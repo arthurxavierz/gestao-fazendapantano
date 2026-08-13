@@ -337,3 +337,93 @@ export async function printAnimal(animal: Animal) {
   popup.document.write(html)
   popup.document.close()
 }
+
+// ============================================================
+// Folhas de campo (impressas, preenchidas à caneta, lidas depois pela IA)
+// ============================================================
+// O número do animal já vai IMPRESSO em cada linha. No curral os peões só
+// marcam um X e escrevem valores curtos. Na volta, a foto da folha é lida pela
+// IA e conferida por uma pessoa antes de virar registro. Imprimir o número (em
+// vez de deixar o peão escrever) é o que faz a leitura automática acertar.
+
+function fieldSheetHeader(doc: jsPDF, title: string, extraLine: string) {
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(19)
+  doc.text(brand, 14, 17)
+  doc.setFontSize(13)
+  doc.text(title, 14, 27)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.text('Data: ____/____/________    Responsável: ______________________________________', 14, 35)
+  if (extraLine) doc.text(extraLine, 14, 41)
+}
+
+export async function exportBreedingSheetPdf(animals: Animal[], title = 'Folha de protocolo reprodutivo') {
+  const photos = await loadAnimalImages(animals, THUMB)
+  const doc = new jsPDF({ orientation: 'landscape' })
+  fieldSheetHeader(doc, title, 'Marque um X em Prenha OU Vazia após o diagnóstico. Anote a data do protocolo.')
+
+  const list = animals.length ? animals : Array.from({ length: 20 }, (_, index) => ({ id: '', number: String(index + 1) } as Animal))
+  const body = list.map((animal) => ['', animal.number || '', animal.breed || '', '', '', '', ''])
+
+  autoTable(doc, {
+    startY: 48,
+    theme: 'grid',
+    margin: { left: 14, right: 14 },
+    head: [['Foto', 'Animal', 'Raça', 'Data do protocolo', 'Prenha', 'Vazia', 'Observação']],
+    body,
+    styles: { fontSize: 9, minCellHeight: 19, valign: 'middle' },
+    headStyles: { fillColor: green, minCellHeight: 8 },
+    columnStyles: {
+      0: { cellWidth: 21 },
+      1: { cellWidth: 22, fontStyle: 'bold' },
+      2: { cellWidth: 34 },
+      3: { cellWidth: 42 },
+      4: { cellWidth: 24 },
+      5: { cellWidth: 24 },
+      6: { cellWidth: 70 }
+    },
+    didDrawCell: (data) => {
+      if (data.section !== 'body' || data.column.index !== 0) return
+      const photo = photos.get(list[data.row.index]?.id)
+      if (photo) drawThumbnail(doc, photo, data.cell)
+    }
+  })
+
+  doc.save(`${safeFileName(title)}.pdf`)
+}
+
+export async function exportManagementSheetPdf(animals: Animal[], title = 'Folha de manejo') {
+  const photos = await loadAnimalImages(animals, THUMB)
+  const doc = new jsPDF({ orientation: 'landscape' })
+  fieldSheetHeader(doc, title, 'Marque um X em Feito para cada animal manejado. Anote o peso quando houver.')
+
+  const list = animals.length ? animals : Array.from({ length: 20 }, (_, index) => ({ id: '', number: String(index + 1) } as Animal))
+  const body = list.map((animal) => ['', animal.number || '', animal.lot || '', '', '', '', ''])
+
+  autoTable(doc, {
+    startY: 48,
+    theme: 'grid',
+    margin: { left: 14, right: 14 },
+    head: [['Foto', 'Animal', 'Local ou lote', 'Presente', 'Feito', 'Peso (kg)', 'Observação']],
+    body,
+    styles: { fontSize: 9, minCellHeight: 19, valign: 'middle' },
+    headStyles: { fillColor: green, minCellHeight: 8 },
+    columnStyles: {
+      0: { cellWidth: 21 },
+      1: { cellWidth: 22, fontStyle: 'bold' },
+      2: { cellWidth: 34 },
+      3: { cellWidth: 24 },
+      4: { cellWidth: 24 },
+      5: { cellWidth: 28 },
+      6: { cellWidth: 84 }
+    },
+    didDrawCell: (data) => {
+      if (data.section !== 'body' || data.column.index !== 0) return
+      const photo = photos.get(list[data.row.index]?.id)
+      if (photo) drawThumbnail(doc, photo, data.cell)
+    }
+  })
+
+  doc.save(`${safeFileName(title)}.pdf`)
+}

@@ -26,6 +26,12 @@ Duas restrições guiaram o projeto: **o operador usa o celular no meio do pasto
 
 **Documentos** — ficha individual em PDF, Word e impressão direta com a foto em tamanho grande; relação completa e folha de manejo com miniatura de cada animal; exportação CSV para Excel.
 
+**Reprodução** — acompanhamento dos protocolos (IATF) de cada matriz: 1ª, 2ª, 3ª tentativa com data e diagnóstico de gestação (prenha, vazia ou aguardando). A matriz que esgota os protocolos sem emprenhar é sinalizada em vermelho para descarte, com o número de tentativas configurável (2, 3 ou 4). Genealogia liga cada cria à mãe, e a ficha da matriz oferece o cadastro do bezerro já vinculado.
+
+**Manejos** — registro das rotinas do rebanho (vacinação, vermifugação, pesagem, suplementação, protocolo) com data, produtos e doses, e quantidade de gado. Dois modos: rápido (só a quantidade) ou detalhado (animal por animal).
+
+**Folhas de campo com leitura por IA** — para reprodução e manejo, o sistema exporta uma folha em PDF com o número de cada animal já impresso e colunas em branco para caneta. No curral os peões só marcam um X e escrevem valores curtos. Na volta, a foto da folha preenchida é lida por uma Edge Function (o mesmo padrão da leitura de brinco): a IA transcreve linha por linha, uma pessoa confere numa tela editável, e só o que está marcado na folha vira registro.
+
 **Administração** — linha do tempo de quem registrou o quê, agrupada por dia, com filtros por pessoa e por tipo. Criação de contas, troca de senha e e-mail, e definição de perfis.
 
 ## Decisões técnicas
@@ -74,6 +80,7 @@ As duas Edge Functions são opcionais e independentes:
 
 ```bash
 npx supabase functions deploy analisar-foto        # leitura do brinco por IA
+npx supabase functions deploy analisar-folha       # leitura de folhas de campo por IA
 npx supabase functions deploy gerenciar-usuarios   # gestão de contas pela tela
 ```
 

@@ -1,4 +1,4 @@
-import { AlertTriangle, ClipboardCheck, FileText, HeartPulse, Plus, Search, Users } from 'lucide-react'
+import { AlertOctagon, AlertTriangle, FileText, HeartHandshake, HeartPulse, Plus, Search, Syringe, Users } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppData } from '../AppContext'
 import { Loading } from '../components/Loading'
@@ -16,6 +16,7 @@ export function Dashboard() {
     normal: animals.filter((item) => item.status === 'normal').length,
     observacao: animals.filter((item) => item.status === 'observacao').length,
     doente: animals.filter((item) => item.status === 'doente').length,
+    descarte: animals.filter((item) => item.status === 'descarte').length,
     morto: animals.filter((item) => item.status === 'morto').length
   }
 
@@ -42,12 +43,12 @@ export function Dashboard() {
         <article className="summary-card"><span>Normais</span><strong>{summary.normal}</strong><div className="summary-line normal" /></article>
         <article className="summary-card"><span>Em observação</span><strong>{summary.observacao}</strong><div className="summary-line observacao" /></article>
         <article className="summary-card"><span>Doentes</span><strong>{summary.doente}</strong><div className="summary-line doente" /></article>
-        <article className="summary-card"><span>Mortos</span><strong>{summary.morto}</strong><div className="summary-line morto" /></article>
+        <article className="summary-card"><span>Para descarte</span><strong>{summary.descarte}</strong><div className="summary-line descarte" /></article>
       </section>
 
       <section className="quick-actions">
-        <Link to="/animais" className="quick-action"><Search /><div><strong>Consultar animal</strong><span>Pesquise pelo número, raça ou situação</span></div></Link>
-        <Link to="/contagens" className="quick-action"><ClipboardCheck /><div><strong>Nova contagem</strong><span>Registre a quantidade ou os números encontrados</span></div></Link>
+        <Link to="/reproducao" className="quick-action"><HeartHandshake /><div><strong>Reprodução</strong><span>Protocolos, diagnóstico e descarte das matrizes</span></div></Link>
+        <Link to="/manejos" className="quick-action"><Syringe /><div><strong>Novo manejo</strong><span>Vacinação, vermifugação, pesagem e folhas de campo</span></div></Link>
         <Link to="/relatorios" className="quick-action"><FileText /><div><strong>Preparar documento</strong><span>PDF, Word ou folha pronta para imprimir</span></div></Link>
       </section>
 

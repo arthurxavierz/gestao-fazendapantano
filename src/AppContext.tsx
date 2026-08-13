@@ -1,12 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import type { Animal, CountSession, Occurrence } from './types'
+import type { Animal, BreedingAttempt, CountSession, ManagementEvent, Occurrence } from './types'
 import {
   listAnimals,
+  listBreedingAttempts,
   listCounts,
+  listManagementEvents,
   listOccurrences,
   removeAnimal,
+  removeBreedingAttempt,
+  removeManagementEvent,
   saveAnimal,
+  saveBreedingAttempt,
   saveCount,
+  saveManagementEvent,
   saveOccurrence
 } from './services/repository'
 
@@ -14,6 +20,8 @@ type AppContextValue = {
   animals: Animal[]
   occurrences: Occurrence[]
   counts: CountSession[]
+  breedingAttempts: BreedingAttempt[]
+  managementEvents: ManagementEvent[]
   loading: boolean
   error: string | null
   refresh: () => Promise<void>
@@ -21,6 +29,14 @@ type AppContextValue = {
   deleteAnimal: (id: string) => Promise<void>
   addOccurrence: (occurrence: Omit<Occurrence, 'id' | 'created_at'>) => Promise<Occurrence>
   addCount: (count: Omit<CountSession, 'id' | 'created_at'>) => Promise<CountSession>
+  upsertBreedingAttempt: (
+    attempt: Partial<BreedingAttempt> & Pick<BreedingAttempt, 'animal_id' | 'attempt_number' | 'protocol_date' | 'result'>
+  ) => Promise<BreedingAttempt>
+  deleteBreedingAttempt: (id: string) => Promise<void>
+  upsertManagementEvent: (
+    event: Partial<ManagementEvent> & Pick<ManagementEvent, 'date' | 'type' | 'title'>
+  ) => Promise<ManagementEvent>
+  deleteManagementEvent: (id: string) => Promise<void>
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -29,6 +45,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [animals, setAnimals] = useState<Animal[]>([])
   const [occurrences, setOccurrences] = useState<Occurrence[]>([])
   const [counts, setCounts] = useState<CountSession[]>([])
+  const [breedingAttempts, setBreedingAttempts] = useState<BreedingAttempt[]>([])
+  const [managementEvents, setManagementEvents] = useState<ManagementEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -36,14 +54,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLoading(true)
     setError(null)
     try {
-      const [animalsData, occurrencesData, countsData] = await Promise.all([
+      const [animalsData, occurrencesData, countsData, breedingData, managementData] = await Promise.all([
         listAnimals(),
         listOccurrences(),
-        listCounts()
+        listCounts(),
+        listBreedingAttempts(),
+        listManagementEvents()
       ])
       setAnimals(animalsData)
       setOccurrences(occurrencesData)
       setCounts(countsData)
+      setBreedingAttempts(breedingData)
+      setManagementEvents(managementData)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível carregar os dados.')
     } finally {
@@ -78,20 +100,52 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return saved
   }
 
+  const upsertBreedingAttempt = async (
+    attempt: Partial<BreedingAttempt> & Pick<BreedingAttempt, 'animal_id' | 'attempt_number' | 'protocol_date' | 'result'>
+  ) => {
+    const saved = await saveBreedingAttempt(attempt)
+    await refresh()
+    return saved
+  }
+
+  const deleteBreedingAttempt = async (id: string) => {
+    await removeBreedingAttempt(id)
+    await refresh()
+  }
+
+  const upsertManagementEvent = async (
+    event: Partial<ManagementEvent> & Pick<ManagementEvent, 'date' | 'type' | 'title'>
+  ) => {
+    const saved = await saveManagementEvent(event)
+    await refresh()
+    return saved
+  }
+
+  const deleteManagementEvent = async (id: string) => {
+    await removeManagementEvent(id)
+    await refresh()
+  }
+
   const value = useMemo(
     () => ({
       animals,
       occurrences,
       counts,
+      breedingAttempts,
+      managementEvents,
       loading,
       error,
       refresh,
       upsertAnimal,
       deleteAnimal,
       addOccurrence,
-      addCount
+      addCount,
+      upsertBreedingAttempt,
+      deleteBreedingAttempt,
+      upsertManagementEvent,
+      deleteManagementEvent
     }),
-    [animals, occurrences, counts, loading, error, refresh]
+    [animals, occurrences, counts, breedingAttempts, managementEvents, loading, error, refresh]
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

@@ -286,3 +286,81 @@ for update to authenticated using (bucket_id = 'animal-photos') with check (buck
 
 create policy "animal_photos_authenticated_delete" on storage.objects
 for delete to authenticated using (bucket_id = 'animal-photos');
+
+-- ============================================================
+-- Reprodução, genealogia e manejos (adicionados na fase de rotinas)
+-- ============================================================
+-- Situação nova 'descarte': matriz sinalizada para abate após esgotar os
+-- protocolos sem emprenhar. Recria o check para aceitar o novo valor.
+alter table public.animals drop constraint if exists animals_status_check;
+alter table public.animals add constraint animals_status_check
+  check (status in ('normal', 'observacao', 'doente', 'descarte', 'morto', 'vendido'));
+
+-- Genealogia: liga a cria à matriz (mãe). Nascido na fazenda aponta para a mãe.
+alter table public.animals add column if not exists mother_id uuid references public.animals(id) on delete set null;
+create index if not exists animals_mother_idx on public.animals(mother_id);
+
+-- Tentativas de protocolo reprodutivo (1ª, 2ª, 3ª...). Acumular 'vazia' até o
+-- limite sem 'prenha' sinaliza a matriz para descarte (a regra fica no app,
+-- que permite configurar o número de tentativas).
+create table if not exists public.breeding_attempts (
+  id uuid primary key default gen_random_uuid(),
+  animal_id uuid not null references public.animals(id) on delete cascade,
+  attempt_number integer not null check (attempt_number > 0),
+  protocol_date date not null,
+  protocol_type text,
+  semen text,
+  confirmation_date date,
+  result text not null default 'pendente' check (result in ('pendente', 'prenha', 'vazia')),
+  notes text,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists breeding_animal_idx on public.breeding_attempts(animal_id);
+create index if not exists breeding_protocol_date_idx on public.breeding_attempts(protocol_date desc);
+create index if not exists breeding_created_by_idx on public.breeding_attempts(created_by);
+
+-- Manejos do rebanho: data, tipo, produtos (nome e dose), quantidade de gado e,
+-- opcionalmente, os animais detalhados que vieram da folha de campo importada.
+create table if not exists public.management_events (
+  id uuid primary key default gen_random_uuid(),
+  date date not null,
+  type text not null check (type in ('vacinacao', 'vermifugacao', 'protocolo', 'pesagem', 'suplementacao', 'outro')),
+  title text not null,
+  products jsonb not null default '[]'::jsonb,
+  lot text,
+  animal_count integer not null default 0 check (animal_count >= 0),
+  participants jsonb not null default '[]'::jsonb,
+  notes text,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists management_date_idx on public.management_events(date desc);
+create index if not exists management_created_by_idx on public.management_events(created_by);
+
+-- Autoria por gatilho (created_by vem da sessão, nunca do navegador).
+drop trigger if exists breeding_set_actor on public.breeding_attempts;
+create trigger breeding_set_actor
+before insert on public.breeding_attempts
+for each row execute procedure public.set_actor();
+
+drop trigger if exists management_set_actor on public.management_events;
+create trigger management_set_actor
+before insert on public.management_events
+for each row execute procedure public.set_actor();
+
+alter table public.breeding_attempts enable row level security;
+alter table public.management_events enable row level security;
+
+-- Rotinas do dia a dia: liberadas para toda a equipe autenticada, como as
+-- demais tabelas operacionais. A rastreabilidade de quem registrou continua
+-- restrita ao administrador pela política da tabela profiles.
+drop policy if exists "breeding_authenticated_all" on public.breeding_attempts;
+create policy "breeding_authenticated_all" on public.breeding_attempts
+for all to authenticated using (true) with check (true);
+
+drop policy if exists "management_authenticated_all" on public.management_events;
+create policy "management_authenticated_all" on public.management_events
+for all to authenticated using (true) with check (true);

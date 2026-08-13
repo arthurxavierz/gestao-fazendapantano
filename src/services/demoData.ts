@@ -1,4 +1,4 @@
-import type { Animal, CountSession, Occurrence, Profile } from '../types'
+import type { Animal, BreedingAttempt, CountSession, ManagementEvent, Occurrence, Profile } from '../types'
 
 const now = new Date()
 const iso = (daysAgo = 0) => {
@@ -58,6 +58,7 @@ export const demoAnimals: Animal[] = [
     origin: 'Nascido na fazenda',
     status: 'normal',
     notes: null,
+    mother_id: 'a-195',
     created_by: 'u-marcos',
     created_at: iso(120),
     updated_at: iso(4)
@@ -138,4 +139,97 @@ export const demoProfiles: Profile[] = [
   { id: 'u-admin', full_name: 'Administrador da fazenda', email: 'admin@fazenda.com.br', role: 'administrador', created_at: iso(120) },
   { id: 'u-joao', full_name: 'Joao do curral', email: 'joao@fazenda.com.br', role: 'operador', created_at: iso(60) },
   { id: 'u-marcos', full_name: 'Marcos do campo', email: 'marcos@fazenda.com.br', role: 'operador', created_at: iso(30) }
+]
+
+export const demoBreedingAttempts: BreedingAttempt[] = [
+  // Matriz 195: emprenhou na segunda tentativa.
+  {
+    id: 'b-195-1',
+    animal_id: 'a-195',
+    animal_number: '195',
+    attempt_number: 1,
+    protocol_date: '2025-01-10',
+    protocol_type: 'IATF',
+    semen: 'Nelore PO',
+    confirmation_date: '2025-02-09',
+    result: 'vazia',
+    notes: null,
+    created_by: 'u-admin',
+    created_at: iso(150)
+  },
+  {
+    id: 'b-195-2',
+    animal_id: 'a-195',
+    animal_number: '195',
+    attempt_number: 2,
+    protocol_date: '2025-02-25',
+    protocol_type: 'IATF',
+    semen: 'Nelore PO',
+    confirmation_date: '2025-03-27',
+    result: 'prenha',
+    notes: 'Confirmada por ultrassom.',
+    created_by: 'u-admin',
+    created_at: iso(120)
+  },
+  // Matriz 087: duas tentativas vazias, aguardando a terceira.
+  {
+    id: 'b-087-1',
+    animal_id: 'a-087',
+    animal_number: '087',
+    attempt_number: 1,
+    protocol_date: '2025-03-05',
+    protocol_type: 'IATF',
+    semen: 'Angus',
+    confirmation_date: '2025-04-04',
+    result: 'vazia',
+    notes: null,
+    created_by: 'u-admin',
+    created_at: iso(100)
+  },
+  {
+    id: 'b-087-2',
+    animal_id: 'a-087',
+    animal_number: '087',
+    attempt_number: 2,
+    protocol_date: '2025-04-20',
+    protocol_type: 'IATF',
+    semen: 'Angus',
+    confirmation_date: '2025-05-20',
+    result: 'vazia',
+    notes: null,
+    created_by: 'u-admin',
+    created_at: iso(70)
+  }
+]
+
+export const demoManagementEvents: ManagementEvent[] = [
+  {
+    id: 'm-1',
+    date: '2025-06-15',
+    type: 'vacinacao',
+    title: 'Vacinação contra aftosa',
+    products: [{ name: 'Vacina aftosa', dose: '5 ml' }],
+    lot: 'Lote Norte',
+    animal_count: 2,
+    participants: [
+      { animal_id: 'a-087', number: '087', present: true, done: true, weight: null, note: null },
+      { animal_id: 'a-195', number: '195', present: true, done: true, weight: null, note: null }
+    ],
+    notes: 'Rebanho tranquilo, sem intercorrências.',
+    created_by: 'u-joao',
+    created_at: iso(20)
+  },
+  {
+    id: 'm-2',
+    date: '2025-06-28',
+    type: 'vermifugacao',
+    title: 'Vermifugação geral',
+    products: [{ name: 'Vermífugo pour-on', dose: '1 ml/10 kg' }],
+    lot: 'Curral 2',
+    animal_count: 34,
+    participants: [],
+    notes: null,
+    created_by: 'u-marcos',
+    created_at: iso(8)
+  }
 ]

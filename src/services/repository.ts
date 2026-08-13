@@ -1,11 +1,28 @@
-import type { Animal, CountSession, Occurrence, Profile, UserRole } from '../types'
-import { demoAnimals, demoCounts, demoOccurrences, demoProfiles } from './demoData'
+import type {
+  Animal,
+  BreedingAttempt,
+  CountSession,
+  ManagementEvent,
+  Occurrence,
+  Profile,
+  UserRole
+} from '../types'
+import {
+  demoAnimals,
+  demoBreedingAttempts,
+  demoCounts,
+  demoManagementEvents,
+  demoOccurrences,
+  demoProfiles
+} from './demoData'
 import { isSupabaseConfigured, supabase } from './supabase'
 
 const KEYS = {
   animals: 'pantano.animals',
   occurrences: 'pantano.occurrences',
-  counts: 'pantano.counts'
+  counts: 'pantano.counts',
+  breeding: 'pantano.breeding',
+  management: 'pantano.management'
 }
 
 function readLocal<T>(key: string, fallback: T): T {
@@ -52,6 +69,7 @@ export async function saveAnimal(input: Partial<Animal> & Pick<Animal, 'number'>
       origin: input.origin ?? null,
       status: input.status ?? existing?.status ?? 'normal',
       notes: input.notes ?? null,
+      mother_id: input.mother_id ?? existing?.mother_id ?? null,
       ai_analysis: input.ai_analysis ?? existing?.ai_analysis ?? null,
       created_at: existing?.created_at ?? now,
       updated_at: now
@@ -77,6 +95,7 @@ export async function saveAnimal(input: Partial<Animal> & Pick<Animal, 'number'>
     origin: input.origin ?? null,
     status: input.status ?? 'normal',
     notes: input.notes ?? null,
+    mother_id: input.mother_id ?? null,
     ai_analysis: input.ai_analysis ?? null,
     updated_at: now
   }
@@ -292,4 +311,146 @@ export async function uploadAnimalPhoto(file: File, animalNumber: string): Promi
   const { error } = await supabase.storage.from('animal-photos').upload(path, file, { upsert: true })
   if (error) throw error
   return supabase.storage.from('animal-photos').getPublicUrl(path).data.publicUrl
+}
+
+// ============================================================
+// Reprodução
+// ============================================================
+export async function listBreedingAttempts(): Promise<BreedingAttempt[]> {
+  if (!isSupabaseConfigured || !supabase) return readLocal(KEYS.breeding, demoBreedingAttempts)
+  const { data, error } = await supabase
+    .from('breeding_attempts')
+    .select('*, animals(number)')
+    .order('protocol_date', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map((row: any) => ({ ...row, animal_number: row.animals?.number })) as BreedingAttempt[]
+}
+
+export async function saveBreedingAttempt(
+  input: Partial<BreedingAttempt> & Pick<BreedingAttempt, 'animal_id' | 'attempt_number' | 'protocol_date' | 'result'>
+): Promise<BreedingAttempt> {
+  const now = new Date().toISOString()
+  if (!isSupabaseConfigured || !supabase) {
+    const items = readLocal<BreedingAttempt[]>(KEYS.breeding, demoBreedingAttempts)
+    const existing = input.id ? items.find((item) => item.id === input.id) : undefined
+    const attempt: BreedingAttempt = {
+      id: existing?.id ?? crypto.randomUUID(),
+      animal_id: input.animal_id,
+      animal_number: input.animal_number ?? existing?.animal_number,
+      attempt_number: input.attempt_number,
+      protocol_date: input.protocol_date,
+      protocol_type: input.protocol_type ?? existing?.protocol_type ?? null,
+      semen: input.semen ?? existing?.semen ?? null,
+      confirmation_date: input.confirmation_date ?? existing?.confirmation_date ?? null,
+      result: input.result,
+      notes: input.notes ?? existing?.notes ?? null,
+      created_by: existing?.created_by ?? null,
+      created_at: existing?.created_at ?? now
+    }
+    const next = existing ? items.map((item) => (item.id === attempt.id ? attempt : item)) : [attempt, ...items]
+    writeLocal(KEYS.breeding, next)
+    return attempt
+  }
+
+  const payload = {
+    animal_id: input.animal_id,
+    attempt_number: input.attempt_number,
+    protocol_date: input.protocol_date,
+    protocol_type: input.protocol_type ?? null,
+    semen: input.semen ?? null,
+    confirmation_date: input.confirmation_date || null,
+    result: input.result,
+    notes: input.notes ?? null
+  }
+  const query = input.id
+    ? supabase.from('breeding_attempts').update(payload).eq('id', input.id).select('*, animals(number)').single()
+    : supabase.from('breeding_attempts').insert(payload).select('*, animals(number)').single()
+  const { data, error } = await query
+  if (error) throw error
+  const row = data as any
+  return { ...row, animal_number: row.animals?.number } as BreedingAttempt
+}
+
+export async function removeBreedingAttempt(id: string) {
+  if (!isSupabaseConfigured || !supabase) {
+    const items = readLocal<BreedingAttempt[]>(KEYS.breeding, demoBreedingAttempts)
+    writeLocal(KEYS.breeding, items.filter((item) => item.id !== id))
+    return
+  }
+  const { error } = await supabase.from('breeding_attempts').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ============================================================
+// Manejos
+// ============================================================
+export async function listManagementEvents(): Promise<ManagementEvent[]> {
+  if (!isSupabaseConfigured || !supabase) return readLocal(KEYS.management, demoManagementEvents)
+  const { data, error } = await supabase
+    .from('management_events')
+    .select('*')
+    .order('date', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    products: row.products ?? [],
+    participants: row.participants ?? []
+  })) as ManagementEvent[]
+}
+
+export async function saveManagementEvent(
+  input: Partial<ManagementEvent> & Pick<ManagementEvent, 'date' | 'type' | 'title'>
+): Promise<ManagementEvent> {
+  const now = new Date().toISOString()
+  const participants = input.participants ?? []
+  const animalCount = input.animal_count ?? (participants.length || 0)
+
+  if (!isSupabaseConfigured || !supabase) {
+    const items = readLocal<ManagementEvent[]>(KEYS.management, demoManagementEvents)
+    const existing = input.id ? items.find((item) => item.id === input.id) : undefined
+    const event: ManagementEvent = {
+      id: existing?.id ?? crypto.randomUUID(),
+      date: input.date,
+      type: input.type,
+      title: input.title,
+      products: input.products ?? existing?.products ?? [],
+      lot: input.lot ?? existing?.lot ?? null,
+      animal_count: animalCount,
+      participants,
+      notes: input.notes ?? existing?.notes ?? null,
+      created_by: existing?.created_by ?? null,
+      created_at: existing?.created_at ?? now
+    }
+    const next = existing ? items.map((item) => (item.id === event.id ? event : item)) : [event, ...items]
+    writeLocal(KEYS.management, next)
+    return event
+  }
+
+  const payload = {
+    date: input.date,
+    type: input.type,
+    title: input.title,
+    products: input.products ?? [],
+    lot: input.lot ?? null,
+    animal_count: animalCount,
+    participants,
+    notes: input.notes ?? null
+  }
+  const query = input.id
+    ? supabase.from('management_events').update(payload).eq('id', input.id).select().single()
+    : supabase.from('management_events').insert(payload).select().single()
+  const { data, error } = await query
+  if (error) throw error
+  const row = data as any
+  return { ...row, products: row.products ?? [], participants: row.participants ?? [] } as ManagementEvent
+}
+
+export async function removeManagementEvent(id: string) {
+  if (!isSupabaseConfigured || !supabase) {
+    const items = readLocal<ManagementEvent[]>(KEYS.management, demoManagementEvents)
+    writeLocal(KEYS.management, items.filter((item) => item.id !== id))
+    return
+  }
+  const { error } = await supabase.from('management_events').delete().eq('id', id)
+  if (error) throw error
 }

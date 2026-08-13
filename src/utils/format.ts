@@ -1,9 +1,10 @@
-import type { AnimalStatus, AnimalSex, OccurrenceType } from '../types'
+import type { AnimalStatus, AnimalSex, ConfirmationResult, ManagementType, OccurrenceType } from '../types'
 
 export const statusLabel: Record<AnimalStatus, string> = {
   normal: 'Normal',
   observacao: 'Em observação',
   doente: 'Doente',
+  descarte: 'Para descarte',
   morto: 'Morto',
   vendido: 'Vendido'
 }
@@ -92,4 +93,22 @@ export function formatCoat(value?: string | null) {
     .join(' ')
 
   return agreed.charAt(0).toLocaleUpperCase('pt-BR') + agreed.slice(1)
+}
+
+// ============================================================
+// Reprodução e manejo
+// ============================================================
+export const confirmationLabel: Record<ConfirmationResult, string> = {
+  pendente: 'Aguardando diagnóstico',
+  prenha: 'Prenha',
+  vazia: 'Vazia'
+}
+
+export const managementTypeLabel: Record<ManagementType, string> = {
+  vacinacao: 'Vacinação',
+  vermifugacao: 'Vermifugação',
+  protocolo: 'Protocolo reprodutivo',
+  pesagem: 'Pesagem',
+  suplementacao: 'Suplementação',
+  outro: 'Outro manejo'
 }
