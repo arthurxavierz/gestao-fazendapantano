@@ -2,12 +2,14 @@ import { saveAs } from 'file-saver'
 import { AlignmentType, Document, HeadingLevel, ImageRun, Packer, PageOrientation, Paragraph, Table, TableCell, TableRow, TextRun, VerticalAlign, WidthType } from 'docx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { brand as identity } from '../brand'
 import type { Animal } from '../types'
 import { animalCategory, originType } from '../domain/herd'
 import { categoryLabel, formatCoat, formatDate, formatWeight, originLabel, sexLabel, statusLabel } from './format'
 import { fitInside, loadAnimalImages, loadExportImage, type ExportImage } from './images'
 
-const brand = 'Fazenda Pântano'
+
+const brand = identity.documentHeader
 // Azul-marinho da identidade visual, usado nos cabeçalhos das tabelas.
 const green: [number, number, number] = [10, 31, 58]
 

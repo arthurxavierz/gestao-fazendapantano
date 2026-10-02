@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Fazenda Pântano · sistema visual
+   Gestão Pecuária · sistema visual
    Azul-marinho profundo para estrutura, verde-menta para ação e resultado.
    ========================================================================== */
 
@@ -130,6 +130,11 @@ small { font-size: .78rem; }
 .brand-text strong { display: block; font-size: 1.04rem; font-weight: 800; letter-spacing: -.02em; color: inherit; }
 .brand-text span { display: block; font-size: .72rem; margin-top: 1px; color: rgba(255, 255, 255, .55); letter-spacing: .02em; }
 .brand-compact { color: var(--ink); }
+.brand-mark-achilles { background: linear-gradient(160deg, var(--navy-700), var(--navy-950)); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1), 0 6px 18px -8px rgba(6, 20, 39, .6); }
+.brand-mark-achilles img { height: 24px; width: auto; }
+.brand-compact .brand-mark-achilles img { height: 21px; }
+.brand-wordmark { display: block; height: 22px; width: auto; }
+.brand-achilles .brand-text span { margin-top: 5px; letter-spacing: .14em; text-transform: uppercase; font-size: .62rem; font-weight: 700; color: var(--mint); }
 .brand-compact .brand-mark { width: 36px; height: 36px; border-radius: 11px; }
 .brand-compact .brand-text strong { font-size: .98rem; }
 

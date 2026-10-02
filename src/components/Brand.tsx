@@ -1,3 +1,5 @@
+import { brand } from '../brand'
+
 /** Marca da fazenda: cabeça de boi geométrica, legível até em 16px. */
 export function BrandMark({ size = 22 }: { size?: number }) {
   return (
@@ -11,12 +13,25 @@ export function BrandMark({ size = 22 }: { size?: number }) {
 }
 
 export function Brand({ compact = false }: { compact?: boolean }) {
+  if (brand.achilles) {
+    return (
+      <div className={`brand brand-achilles ${compact ? 'brand-compact' : ''}`}>
+        <div className="brand-mark brand-mark-achilles"><img src="/brand/achilles-simbolo.png" alt="" /></div>
+        {!compact && (
+          <div className="brand-text">
+            <img className="brand-wordmark" src="/brand/achilles-nome.png" alt="Achilles" />
+            <span>{brand.tagline}</span>
+          </div>
+        )}
+      </div>
+    )
+  }
   return (
     <div className={`brand ${compact ? 'brand-compact' : ''}`}>
       <div className="brand-mark"><BrandMark /></div>
       <div className="brand-text">
-        <strong>Fazenda Pântano</strong>
-        {!compact && <span>Gestão pecuária</span>}
+        <strong>{brand.name}</strong>
+        {!compact && <span>{brand.tagline}</span>}
       </div>
     </div>
   )

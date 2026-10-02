@@ -2,6 +2,7 @@ import { ArrowRight, HardHat, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
+import { brand } from '../brand'
 import { Brand } from '../components/Brand'
 import { isSupabaseConfigured } from '../services/supabase'
 import type { UserRole } from '../types'
@@ -66,7 +67,7 @@ export function Login() {
         <form className="login-form" onSubmit={submit}>
           <div className="login-icon"><LockKeyhole /></div>
           <span className="eyebrow">Acesso ao sistema</span>
-          <h2>Entrar na Fazenda Pântano</h2>
+          <h2>{brand.loginTitle}</h2>
 
           <div className="role-tabs" role="tablist" aria-label="Tipo de acesso">
             {tabs.map(({ role, label, icon: Icon }) => (

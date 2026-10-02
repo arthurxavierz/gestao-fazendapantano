@@ -32,3 +32,6 @@ GUIA_IMPLANTACAO.md
 
 # Configuração local do Claude Code
 .claude/
+
+# Roteiro do video de apresentacao (local)
+video/

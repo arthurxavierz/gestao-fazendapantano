@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Fazenda Pântano',
-        short_name: 'Pântano',
-        description: 'Gestão pecuária da Fazenda Pântano: rebanho, reprodução, sanitário e pesagens',
+        name: 'Gestão Pecuária',
+        short_name: 'Pecuária',
+        description: 'Gestão pecuária: rebanho, reprodução, sanitário e pesagens',
         theme_color: '#0a1f3a',
         background_color: '#f2f5f9',
         display: 'standalone',

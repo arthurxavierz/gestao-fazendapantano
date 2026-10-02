@@ -16,6 +16,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppData } from '../AppContext'
 import { useAuth } from '../AuthContext'
+import { brand } from '../brand'
 import { BarList, ColumnChart, Donut, LineChart, Ring, type Slice } from '../components/charts'
 import { Loading } from '../components/Loading'
 import { StatusBadge } from '../components/StatusBadge'
@@ -174,7 +175,7 @@ export function Dashboard() {
       <section className="hero">
         <div className="hero-copy">
           <span className="eyebrow">{greeting()}{firstName && firstName !== 'Demonstração' ? `, ${firstName}` : ''}</span>
-          <h1>Fazenda Pântano em números</h1>
+          <h1>{brand.heroTitle}</h1>
           <p>
             {herd.active.length} animais no rebanho, {indicators.pregnant} matrizes prenhes
             {upcoming.length ? ` e ${upcoming.length} manejo${upcoming.length > 1 ? 's' : ''} programado${upcoming.length > 1 ? 's' : ''} nesta semana.` : '.'}
