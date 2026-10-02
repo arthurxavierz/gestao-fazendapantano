@@ -11,9 +11,9 @@ export default defineConfig({
       manifest: {
         name: 'Fazenda Pântano',
         short_name: 'Pântano',
-        description: 'Controle simples do rebanho da Fazenda Pântano',
-        theme_color: '#173f2c',
-        background_color: '#f5f1e8',
+        description: 'Gestão pecuária da Fazenda Pântano: rebanho, reprodução, sanitário e pesagens',
+        theme_color: '#0a1f3a',
+        background_color: '#f2f5f9',
         display: 'standalone',
         start_url: '/',
         icons: [

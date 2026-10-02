@@ -1,5 +1,6 @@
 import { Check, ClipboardCheck, Hash, Plus, Users } from 'lucide-react'
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAppData } from '../AppContext'
 import { useAuth } from '../AuthContext'
 import { useResponsibleName } from '../hooks/useResponsibleName'
@@ -11,7 +12,16 @@ export function Counts() {
   const { animals, counts, addCount } = useAppData()
   const { isAdmin } = useAuth()
   const responsibleName = useResponsibleName(isAdmin)
-  const [showForm, setShowForm] = useState(false)
+  const [params, setParams] = useSearchParams()
+  const [showForm, setShowForm] = useState(params.get('nova') === '1')
+
+  // Atalho do menu "Novo registro": abre o formulário e limpa o endereço.
+  useEffect(() => {
+    if (params.get('nova')) {
+      params.delete('nova')
+      setParams(params, { replace: true })
+    }
+  }, [params, setParams])
   const [title, setTitle] = useState('')
   const [mode, setMode] = useState<CountSession['mode']>('quantity')
   const [expected, setExpected] = useState('')

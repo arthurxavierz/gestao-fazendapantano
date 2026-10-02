@@ -1,91 +1,157 @@
-import type { Animal, CountSession, Occurrence, Profile, UserRole } from '../types'
+import type { Animal, CountSession, FarmSettings, Occurrence, Profile, UserRole } from '../types'
+import { defaultSettings } from '../domain/reproduction'
 import { demoAnimals, demoCounts, demoOccurrences, demoProfiles } from './demoData'
+import { isSchemaError, localKey, readLocal, writeLocal } from './store'
 import { isSupabaseConfigured, supabase } from './supabase'
 
 const KEYS = {
-  animals: 'pantano.animals',
-  occurrences: 'pantano.occurrences',
-  counts: 'pantano.counts'
+  animals: localKey('animals'),
+  occurrences: localKey('occurrences'),
+  counts: localKey('counts'),
+  settings: localKey('settings')
 }
 
-function readLocal<T>(key: string, fallback: T): T {
-  const raw = localStorage.getItem(key)
-  if (!raw) {
-    localStorage.setItem(key, JSON.stringify(fallback))
-    return fallback
-  }
-  try {
-    return JSON.parse(raw) as T
-  } catch {
-    return fallback
-  }
+/** Colunas que existem desde a primeira versão do banco. */
+const LEGACY_ANIMAL_COLUMNS = [
+  'number', 'name', 'photo_url', 'sex', 'breed', 'coat', 'birth_date', 'birth_date_approximate',
+  'weight', 'lot', 'origin', 'status', 'notes', 'ai_analysis', 'updated_at'
+]
+const LEGACY_STATUSES = ['normal', 'observacao', 'doente', 'morto', 'vendido']
+
+/** Indica que o banco ainda está na versão anterior e os campos novos não foram gravados. */
+let animalsSchemaOutdated = false
+export function isAnimalsSchemaOutdated() {
+  return animalsSchemaOutdated
 }
 
-function writeLocal<T>(key: string, value: T) {
-  localStorage.setItem(key, JSON.stringify(value))
+function legacyPayload(payload: Record<string, unknown>) {
+  const legacy = Object.fromEntries(Object.entries(payload).filter(([key]) => LEGACY_ANIMAL_COLUMNS.includes(key)))
+  if ('status' in legacy && !LEGACY_STATUSES.includes(String(legacy.status))) legacy.status = 'observacao'
+  return legacy
 }
 
 export async function listAnimals(): Promise<Animal[]> {
   if (!isSupabaseConfigured || !supabase) return readLocal(KEYS.animals, demoAnimals)
   const { data, error } = await supabase.from('animals').select('*').order('number')
   if (error) throw error
-  return data as Animal[]
+  const rows = (data ?? []) as Animal[]
+  animalsSchemaOutdated = rows.length > 0 && !('origin_type' in rows[0])
+  return rows
 }
 
-export async function saveAnimal(input: Partial<Animal> & Pick<Animal, 'number'>): Promise<Animal> {
-  const now = new Date().toISOString()
-  if (!isSupabaseConfigured || !supabase) {
-    const animals = readLocal<Animal[]>(KEYS.animals, demoAnimals)
-    const existing = input.id ? animals.find((item) => item.id === input.id) : undefined
-    const animal: Animal = {
-      id: existing?.id ?? crypto.randomUUID(),
-      number: input.number.trim(),
-      name: input.name ?? null,
-      photo_url: input.photo_url ?? existing?.photo_url ?? null,
-      sex: input.sex ?? existing?.sex ?? 'nao_informado',
-      breed: input.breed ?? null,
-      coat: input.coat ?? null,
-      birth_date: input.birth_date ?? null,
-      birth_date_approximate: input.birth_date_approximate ?? false,
-      weight: input.weight ?? null,
-      lot: input.lot ?? null,
-      origin: input.origin ?? null,
-      status: input.status ?? existing?.status ?? 'normal',
-      notes: input.notes ?? null,
-      ai_analysis: input.ai_analysis ?? existing?.ai_analysis ?? null,
-      created_at: existing?.created_at ?? now,
-      updated_at: now
-    }
-    const next = existing
-      ? animals.map((item) => (item.id === animal.id ? animal : item))
-      : [...animals, animal]
-    writeLocal(KEYS.animals, next)
-    return animal
-  }
-
-  const payload = {
+function animalPayload(input: Partial<Animal> & Pick<Animal, 'number'>) {
+  return {
     number: input.number.trim(),
     name: input.name ?? null,
     photo_url: input.photo_url ?? null,
     sex: input.sex ?? 'nao_informado',
-    breed: input.breed ?? null,
-    coat: input.coat ?? null,
+    category: input.category || null,
+    breed: input.breed || null,
+    coat: input.coat || null,
     birth_date: input.birth_date || null,
     birth_date_approximate: input.birth_date_approximate ?? false,
     weight: input.weight ?? null,
-    lot: input.lot ?? null,
-    origin: input.origin ?? null,
+    lot: input.lot || null,
+    origin: input.origin || null,
+    origin_type: input.origin_type ?? 'nao_informado',
+    mother_id: input.mother_id || null,
+    sire: input.sire || null,
+    purchase_batch_id: input.purchase_batch_id || null,
+    entry_date: input.entry_date || null,
+    exit_date: input.exit_date || null,
+    exit_reason: input.exit_reason || null,
     status: input.status ?? 'normal',
-    notes: input.notes ?? null,
+    notes: input.notes || null,
     ai_analysis: input.ai_analysis ?? null,
-    updated_at: now
+    updated_at: new Date().toISOString()
   }
-  const query = input.id
-    ? supabase.from('animals').update(payload).eq('id', input.id).select().single()
-    : supabase.from('animals').insert(payload).select().single()
-  const { data, error } = await query
-  if (error) throw error
+}
+
+export async function saveAnimal(input: Partial<Animal> & Pick<Animal, 'number'>): Promise<Animal> {
+  const now = new Date().toISOString()
+  const payload = animalPayload(input)
+
+  if (!isSupabaseConfigured || !supabase) {
+    const animals = readLocal<Animal[]>(KEYS.animals, demoAnimals)
+    const existing = input.id ? animals.find((item) => item.id === input.id) : undefined
+    if (animals.some((item) => item.number === payload.number && item.id !== existing?.id)) {
+      throw new Error(`Já existe um animal com o número ${payload.number}.`)
+    }
+    const animal = {
+      ...existing,
+      ...payload,
+      photo_url: input.photo_url ?? existing?.photo_url ?? null,
+      ai_analysis: input.ai_analysis ?? existing?.ai_analysis ?? null,
+      id: existing?.id ?? crypto.randomUUID(),
+      created_at: existing?.created_at ?? now,
+      updated_at: now
+    } as Animal
+    const next = existing ? animals.map((item) => (item.id === animal.id ? animal : item)) : [...animals, animal]
+    writeLocal(KEYS.animals, next)
+    return animal
+  }
+
+  const run = (body: Record<string, unknown>) =>
+    input.id
+      ? supabase!.from('animals').update(body).eq('id', input.id).select().single()
+      : supabase!.from('animals').insert(body).select().single()
+
+  let { data, error } = await run(payload)
+  if (error && (isSchemaError(error) || error.code === '23514')) {
+    // Banco ainda sem as colunas novas: grava o que é possível e sinaliza.
+    animalsSchemaOutdated = true
+    ;({ data, error } = await run(legacyPayload(payload)))
+  }
+  if (error) {
+    if (error.code === '23505') throw new Error(`Já existe um animal com o número ${payload.number}.`)
+    throw error
+  }
   return data as Animal
+}
+
+/** Cria vários animais de uma vez (cadastro em lote e partos). */
+export async function createAnimals(inputs: (Partial<Animal> & Pick<Animal, 'number'>)[]): Promise<Animal[]> {
+  if (!inputs.length) return []
+  const payloads = inputs.map(animalPayload)
+
+  if (!isSupabaseConfigured || !supabase) {
+    const animals = readLocal<Animal[]>(KEYS.animals, demoAnimals)
+    const taken = new Set(animals.map((item) => item.number))
+    const duplicated = payloads.filter((item) => taken.has(item.number)).map((item) => item.number)
+    if (duplicated.length) throw new Error(`Números já cadastrados: ${duplicated.slice(0, 8).join(', ')}${duplicated.length > 8 ? '…' : ''}`)
+    const now = new Date().toISOString()
+    const created = payloads.map((item) => ({ ...item, id: crypto.randomUUID(), created_at: now }) as Animal)
+    writeLocal(KEYS.animals, [...animals, ...created])
+    return created
+  }
+
+  const { data, error } = await supabase.from('animals').insert(payloads).select()
+  if (error) {
+    if (error.code === '23505') throw new Error('Algum dos números informados já está cadastrado.')
+    if (isSchemaError(error)) throw new Error('O banco ainda não tem os campos novos. Execute o schema.sql atualizado no Supabase.')
+    throw error
+  }
+  return (data ?? []) as Animal[]
+}
+
+/**
+ * Altera alguns campos de um animal sem reenviar o cadastro inteiro.
+ * Usado pelos manejos: pesagem atualiza o peso, descarte muda a situação.
+ */
+export async function patchAnimal(id: string, patch: Partial<Animal>): Promise<void> {
+  const clean = { ...patch, updated_at: new Date().toISOString() } as Record<string, unknown>
+  delete clean.id
+  if (!isSupabaseConfigured || !supabase) {
+    const animals = readLocal<Animal[]>(KEYS.animals, demoAnimals)
+    writeLocal(KEYS.animals, animals.map((item) => (item.id === id ? { ...item, ...clean } : item)))
+    return
+  }
+  let { error } = await supabase.from('animals').update(clean).eq('id', id)
+  if (error && (isSchemaError(error) || error.code === '23514')) {
+    animalsSchemaOutdated = true
+    ;({ error } = await supabase.from('animals').update(legacyPayload(clean)).eq('id', id))
+  }
+  if (error) throw error
 }
 
 /**
@@ -172,62 +238,50 @@ export async function listOccurrences(): Promise<Occurrence[]> {
   })) as Occurrence[]
 }
 
+/** A ocorrência muda a situação do animal. 'outro' só registra. */
+const occurrenceStatus: Record<Occurrence['type'], Animal['status'] | undefined> = {
+  observacao: 'observacao',
+  doenca: 'doente',
+  morte: 'morto',
+  recuperado: 'normal',
+  descarte: 'descarte',
+  outro: undefined
+}
+
 export async function saveOccurrence(input: Omit<Occurrence, 'id' | 'created_at'>): Promise<Occurrence> {
   const occurrence: Occurrence = {
     ...input,
     id: crypto.randomUUID(),
     created_at: new Date().toISOString()
   }
+  const nextStatus = occurrenceStatus[input.type]
 
   if (!isSupabaseConfigured || !supabase) {
     const items = readLocal<Occurrence[]>(KEYS.occurrences, demoOccurrences)
     writeLocal(KEYS.occurrences, [occurrence, ...items])
-    const animals = readLocal<Animal[]>(KEYS.animals, demoAnimals)
-    const statusMap: Record<Occurrence['type'], Animal['status'] | undefined> = {
-      observacao: 'observacao',
-      doenca: 'doente',
-      morte: 'morto',
-      recuperado: 'normal',
-      outro: undefined
-    }
-    const nextStatus = statusMap[input.type]
-    if (nextStatus) {
-      writeLocal(
-        KEYS.animals,
-        animals.map((item) =>
-          item.id === input.animal_id
-            ? { ...item, status: nextStatus, updated_at: occurrence.created_at }
-            : item
-        )
-      )
-    }
+    if (nextStatus) await patchAnimal(input.animal_id, { status: nextStatus })
     return occurrence
   }
 
-  const { data, error } = await supabase
-    .from('occurrences')
-    .insert({
-      animal_id: input.animal_id,
-      type: input.type,
-      note: input.note,
-      photo_url: input.photo_url ?? null
-      // created_by é preenchido por gatilho no banco, a partir da sessão.
-    })
-    .select()
-    .single()
+  // Bancos antigos não aceitam o tipo 'descarte' na ocorrência: registra como 'outro'.
+  const insert = (type: string) =>
+    supabase!
+      .from('occurrences')
+      .insert({
+        animal_id: input.animal_id,
+        type,
+        note: input.note,
+        photo_url: input.photo_url ?? null
+        // created_by é preenchido por gatilho no banco, a partir da sessão.
+      })
+      .select()
+      .single()
+
+  let { data, error } = await insert(input.type)
+  if (error && error.code === '23514' && input.type === 'descarte') ({ data, error } = await insert('outro'))
   if (error) throw error
 
-  const statusMap: Record<Occurrence['type'], Animal['status'] | undefined> = {
-    observacao: 'observacao',
-    doenca: 'doente',
-    morte: 'morto',
-    recuperado: 'normal',
-    outro: undefined
-  }
-  const nextStatus = statusMap[input.type]
-  if (nextStatus) {
-    await supabase.from('animals').update({ status: nextStatus }).eq('id', input.animal_id)
-  }
+  if (nextStatus) await patchAnimal(input.animal_id, { status: nextStatus })
   return data as Occurrence
 }
 
@@ -259,6 +313,27 @@ export async function saveCount(input: Omit<CountSession, 'id' | 'created_at'>):
   }).select().single()
   if (error) throw error
   return data as CountSession
+}
+
+/** Regras da fazenda. Sem a tabela no banco, valem os padrões do sistema. */
+export async function loadSettings(): Promise<FarmSettings> {
+  if (!isSupabaseConfigured || !supabase) return { ...defaultSettings, ...readLocal<Partial<FarmSettings>>(KEYS.settings, {}) }
+  const { data, error } = await supabase.from('farm_settings').select('*').eq('id', 1).maybeSingle()
+  if (error || !data) return defaultSettings
+  const { id: _id, updated_at: _updated, ...rest } = data as Record<string, unknown>
+  return { ...defaultSettings, ...(rest as Partial<FarmSettings>) }
+}
+
+export async function saveSettings(settings: FarmSettings): Promise<void> {
+  if (!isSupabaseConfigured || !supabase) {
+    writeLocal(KEYS.settings, settings)
+    return
+  }
+  const { error } = await supabase.from('farm_settings').upsert({ id: 1, ...settings })
+  if (error) {
+    if (isSchemaError(error)) throw new Error('Execute o schema.sql atualizado no Supabase para salvar as regras.')
+    throw error
+  }
 }
 
 /**

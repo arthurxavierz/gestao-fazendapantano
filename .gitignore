@@ -29,3 +29,6 @@ pnpm-debug.log*
 
 # Documentacao operacional interna. Fica na maquina, fora do repositorio publico.
 GUIA_IMPLANTACAO.md
+
+# Configuração local do Claude Code
+.claude/

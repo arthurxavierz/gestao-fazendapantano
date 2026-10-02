@@ -286,3 +286,231 @@ for update to authenticated using (bucket_id = 'animal-photos') with check (buck
 
 create policy "animal_photos_authenticated_delete" on storage.objects
 for delete to authenticated using (bucket_id = 'animal-photos');
+
+-- ============================================================
+-- Versão 2: reprodução, manejo sanitário, pesagens e compras
+-- ============================================================
+-- Tudo abaixo é idempotente: pode ser executado sobre um banco que já está em
+-- produção. Nenhum dado existente é apagado; os animais antigos continuam
+-- válidos e ganham colunas novas vazias.
+
+-- Situações novas: 'descarte' (separado para abate) e 'abatido'.
+alter table public.animals drop constraint if exists animals_status_check;
+alter table public.animals add constraint animals_status_check
+  check (status in ('normal', 'observacao', 'doente', 'descarte', 'morto', 'vendido', 'abatido'));
+
+alter table public.occurrences drop constraint if exists occurrences_type_check;
+alter table public.occurrences add constraint occurrences_type_check
+  check (type in ('observacao', 'doenca', 'morte', 'recuperado', 'descarte', 'outro'));
+
+-- Compras: todo animal comprado aponta para o lote em que chegou.
+create table if not exists public.purchase_batches (
+  id uuid primary key default gen_random_uuid(),
+  code text not null,
+  supplier text,
+  purchase_date date not null,
+  quantity integer check (quantity is null or quantity >= 0),
+  total_value numeric(14,2),
+  avg_weight numeric(10,2),
+  gta text,
+  notes text,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+-- Origem e genealogia do animal.
+alter table public.animals add column if not exists category text;
+alter table public.animals add column if not exists origin_type text not null default 'nao_informado';
+alter table public.animals add column if not exists mother_id uuid references public.animals(id) on delete set null;
+alter table public.animals add column if not exists sire text;
+alter table public.animals add column if not exists purchase_batch_id uuid references public.purchase_batches(id) on delete set null;
+alter table public.animals add column if not exists entry_date date;
+alter table public.animals add column if not exists exit_date date;
+alter table public.animals add column if not exists exit_reason text;
+
+alter table public.animals drop constraint if exists animals_category_check;
+alter table public.animals add constraint animals_category_check
+  check (category is null or category in ('bezerro', 'bezerra', 'garrote', 'novilha', 'vaca', 'touro', 'boi'));
+alter table public.animals drop constraint if exists animals_origin_type_check;
+alter table public.animals add constraint animals_origin_type_check
+  check (origin_type in ('nascido', 'comprado', 'nao_informado'));
+
+-- Cadastros antigos tinham a origem só em texto. Converte o que der.
+update public.animals set origin_type = 'nascido'
+  where origin_type = 'nao_informado' and origin ilike '%nasc%';
+update public.animals set origin_type = 'comprado'
+  where origin_type = 'nao_informado' and origin ilike '%compr%';
+
+create index if not exists animals_mother_idx on public.animals(mother_id);
+create index if not exists animals_batch_idx on public.animals(purchase_batch_id);
+
+-- Modelos de protocolo reprodutivo (IATF, repasse com touro...).
+create table if not exists public.repro_protocols (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text,
+  method text not null default 'iatf' check (method in ('iatf', 'ia', 'monta', 'te')),
+  -- Lista de passos: [{ "day": 0, "title": "...", "kind": "aplicacao" }, ...]
+  steps jsonb not null default '[]'::jsonb,
+  active boolean not null default true,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+-- Cada tentativa de prenhez de uma matriz. A sequência de tentativas sem
+-- sucesso é o que leva ao descarte, conforme a regra em farm_settings.
+create table if not exists public.breeding_attempts (
+  id uuid primary key default gen_random_uuid(),
+  animal_id uuid not null references public.animals(id) on delete cascade,
+  method text not null default 'iatf' check (method in ('iatf', 'ia', 'monta', 'te')),
+  protocol_id uuid references public.repro_protocols(id) on delete set null,
+  protocol_name text,
+  -- Cópia dos passos no início, para o histórico não mudar se o modelo for editado.
+  steps jsonb not null default '[]'::jsonb,
+  steps_done jsonb not null default '[]'::jsonb,
+  start_date date not null,
+  insemination_date date,
+  sire text,
+  technician text,
+  diagnosis_date date,
+  result text not null default 'pendente' check (result in ('pendente', 'prenhe', 'vazia', 'aborto', 'parida')),
+  expected_calving_date date,
+  calving_date date,
+  calf_id uuid references public.animals(id) on delete set null,
+  notes text,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists breeding_attempts_animal_idx on public.breeding_attempts(animal_id);
+create index if not exists breeding_attempts_result_idx on public.breeding_attempts(result);
+
+-- Vacinas, vermífugos, medicamentos. Aplicação em lote = uma linha por animal.
+create table if not exists public.health_events (
+  id uuid primary key default gen_random_uuid(),
+  animal_id uuid not null references public.animals(id) on delete cascade,
+  kind text not null check (kind in ('vacina', 'vermifugo', 'carrapaticida', 'medicamento', 'exame', 'outro')),
+  product text not null,
+  dose text,
+  applied_at date not null,
+  next_due_date date,
+  -- Fim da carência: o animal não deve ir para abate antes desta data.
+  withdrawal_until date,
+  product_batch text,
+  notes text,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists health_events_animal_idx on public.health_events(animal_id);
+create index if not exists health_events_next_due_idx on public.health_events(next_due_date);
+
+create table if not exists public.weighings (
+  id uuid primary key default gen_random_uuid(),
+  animal_id uuid not null references public.animals(id) on delete cascade,
+  weighed_at date not null,
+  weight numeric(10,2) not null check (weight > 0),
+  notes text,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists weighings_animal_idx on public.weighings(animal_id, weighed_at);
+
+-- Regras da fazenda. Uma única linha (id = 1).
+create table if not exists public.farm_settings (
+  id integer primary key default 1 check (id = 1),
+  max_breeding_attempts integer not null default 4 check (max_breeding_attempts between 1 and 10),
+  gestation_days integer not null default 290 check (gestation_days between 250 and 320),
+  diagnosis_days integer not null default 30 check (diagnosis_days between 20 and 120),
+  min_breeding_age_months integer not null default 14 check (min_breeding_age_months between 8 and 36),
+  updated_at timestamptz not null default now()
+);
+
+insert into public.farm_settings (id) values (1) on conflict (id) do nothing;
+
+-- Autoria por gatilho, como nas tabelas originais.
+drop trigger if exists purchase_batches_set_actor on public.purchase_batches;
+create trigger purchase_batches_set_actor before insert on public.purchase_batches
+for each row execute procedure public.set_actor();
+
+drop trigger if exists repro_protocols_set_actor on public.repro_protocols;
+create trigger repro_protocols_set_actor before insert on public.repro_protocols
+for each row execute procedure public.set_actor();
+
+drop trigger if exists breeding_attempts_set_actor on public.breeding_attempts;
+create trigger breeding_attempts_set_actor before insert on public.breeding_attempts
+for each row execute procedure public.set_actor();
+
+drop trigger if exists health_events_set_actor on public.health_events;
+create trigger health_events_set_actor before insert on public.health_events
+for each row execute procedure public.set_actor();
+
+drop trigger if exists weighings_set_actor on public.weighings;
+create trigger weighings_set_actor before insert on public.weighings
+for each row execute procedure public.set_actor();
+
+drop trigger if exists farm_settings_set_updated_at on public.farm_settings;
+create trigger farm_settings_set_updated_at before update on public.farm_settings
+for each row execute procedure public.set_updated_at();
+
+alter table public.purchase_batches enable row level security;
+alter table public.repro_protocols enable row level security;
+alter table public.breeding_attempts enable row level security;
+alter table public.health_events enable row level security;
+alter table public.weighings enable row level security;
+alter table public.farm_settings enable row level security;
+
+-- Manejo do dia a dia: liberado para toda a equipe autenticada.
+drop policy if exists "purchase_batches_authenticated_all" on public.purchase_batches;
+create policy "purchase_batches_authenticated_all" on public.purchase_batches
+for all to authenticated using (true) with check (true);
+
+drop policy if exists "repro_protocols_authenticated_all" on public.repro_protocols;
+create policy "repro_protocols_authenticated_all" on public.repro_protocols
+for all to authenticated using (true) with check (true);
+
+drop policy if exists "breeding_attempts_authenticated_all" on public.breeding_attempts;
+create policy "breeding_attempts_authenticated_all" on public.breeding_attempts
+for all to authenticated using (true) with check (true);
+
+drop policy if exists "health_events_authenticated_all" on public.health_events;
+create policy "health_events_authenticated_all" on public.health_events
+for all to authenticated using (true) with check (true);
+
+drop policy if exists "weighings_authenticated_all" on public.weighings;
+create policy "weighings_authenticated_all" on public.weighings
+for all to authenticated using (true) with check (true);
+
+-- As regras da fazenda todos leem, mas só o administrador altera.
+drop policy if exists "farm_settings_read" on public.farm_settings;
+create policy "farm_settings_read" on public.farm_settings
+for select to authenticated using (true);
+
+drop policy if exists "farm_settings_admin_write" on public.farm_settings;
+create policy "farm_settings_admin_write" on public.farm_settings
+for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- Protocolos iniciais, só se a tabela estiver vazia. Ajuste com o veterinário.
+insert into public.repro_protocols (name, description, method, steps)
+select * from (values
+  (
+    'IATF 3 manejos (D0 · D8 · D10)',
+    'Protocolo padrão com implante de progesterona. Ajuste produtos e doses com o veterinário.',
+    'iatf',
+    '[{"day":0,"kind":"aplicacao","title":"Implante de progesterona + Benzoato de estradiol"},{"day":8,"kind":"retirada","title":"Retirada do implante + PGF2α + eCG + Cipionato"},{"day":10,"kind":"inseminacao","title":"Inseminação em tempo fixo"},{"day":40,"kind":"diagnostico","title":"Diagnóstico de gestação"}]'::jsonb
+  ),
+  (
+    'IATF 4 manejos (D0 · D7 · D9 · D11)',
+    'Variação com prostaglandina antecipada, comum em novilhas.',
+    'iatf',
+    '[{"day":0,"kind":"aplicacao","title":"Implante de progesterona + Benzoato de estradiol"},{"day":7,"kind":"aplicacao","title":"Aplicação de PGF2α"},{"day":9,"kind":"retirada","title":"Retirada do implante + eCG + Cipionato de estradiol"},{"day":11,"kind":"inseminacao","title":"Inseminação em tempo fixo"},{"day":41,"kind":"diagnostico","title":"Diagnóstico de gestação"}]'::jsonb
+  ),
+  (
+    'Repasse com touro',
+    'Monta natural para as vazias depois da IATF.',
+    'monta',
+    '[{"day":0,"kind":"inseminacao","title":"Entrada do touro no lote"},{"day":60,"kind":"retirada","title":"Retirada do touro"},{"day":90,"kind":"diagnostico","title":"Diagnóstico de gestação"}]'::jsonb
+  )
+) as seed(name, description, method, steps)
+where not exists (select 1 from public.repro_protocols);
