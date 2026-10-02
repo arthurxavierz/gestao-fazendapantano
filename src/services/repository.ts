@@ -1,7 +1,7 @@
 import type { Animal, CountSession, FarmSettings, Occurrence, Profile, UserRole } from '../types'
 import { defaultSettings } from '../domain/reproduction'
 import { demoAnimals, demoCounts, demoOccurrences, demoProfiles } from './demoData'
-import { isSchemaError, localKey, readLocal, writeLocal } from './store'
+import { fetchAll, isSchemaError, localKey, readLocal, writeLocal } from './store'
 import { isSupabaseConfigured, supabase } from './supabase'
 
 const KEYS = {
@@ -32,9 +32,9 @@ function legacyPayload(payload: Record<string, unknown>) {
 
 export async function listAnimals(): Promise<Animal[]> {
   if (!isSupabaseConfigured || !supabase) return readLocal(KEYS.animals, demoAnimals)
-  const { data, error } = await supabase.from('animals').select('*').order('number')
+  const client = supabase
+  const { rows, error } = await fetchAll<Animal>((from, to) => client.from('animals').select('*').order('number').order('id').range(from, to))
   if (error) throw error
-  const rows = (data ?? []) as Animal[]
   animalsSchemaOutdated = rows.length > 0 && !('origin_type' in rows[0])
   return rows
 }
@@ -154,6 +154,43 @@ export async function patchAnimal(id: string, patch: Partial<Animal>): Promise<v
   if (error) throw error
 }
 
+/** Mesma alteração em vários animais, numa consulta por bloco de 200. */
+export async function patchAnimals(ids: string[], patch: Partial<Animal>): Promise<void> {
+  if (!ids.length) return
+  const clean = { ...patch, updated_at: new Date().toISOString() } as Record<string, unknown>
+  delete clean.id
+  if (!isSupabaseConfigured || !supabase) {
+    const set = new Set(ids)
+    const animals = readLocal<Animal[]>(KEYS.animals, demoAnimals)
+    writeLocal(KEYS.animals, animals.map((item) => (set.has(item.id) ? { ...item, ...clean } : item)))
+    return
+  }
+  for (let start = 0; start < ids.length; start += 200) {
+    const chunk = ids.slice(start, start + 200)
+    let { error } = await supabase.from('animals').update(clean).in('id', chunk)
+    if (error && (isSchemaError(error) || error.code === '23514')) {
+      animalsSchemaOutdated = true
+      ;({ error } = await supabase.from('animals').update(legacyPayload(clean)).in('id', chunk))
+    }
+    if (error) throw error
+  }
+}
+
+/** Registra várias ocorrências de uma vez, sem mexer na situação dos animais. */
+export async function insertOccurrences(rows: Omit<Occurrence, 'id' | 'created_at'>[]): Promise<void> {
+  if (!rows.length) return
+  if (!isSupabaseConfigured || !supabase) {
+    const now = new Date().toISOString()
+    const items = readLocal<Occurrence[]>(KEYS.occurrences, demoOccurrences)
+    writeLocal(KEYS.occurrences, [...rows.map((row) => ({ ...row, id: crypto.randomUUID(), created_at: now })), ...items])
+    return
+  }
+  const body = (type?: string) => rows.map((row) => ({ animal_id: row.animal_id, type: type ?? row.type, note: row.note, photo_url: row.photo_url ?? null }))
+  let { error } = await supabase.from('occurrences').insert(body())
+  if (error && error.code === '23514') ({ error } = await supabase.from('occurrences').insert(body('outro')))
+  if (error) throw error
+}
+
 /**
  * Grava vários animais de uma vez, vindos da planilha importada.
  * Usa upsert pelo número, que é único, então reimportar a mesma planilha
@@ -227,12 +264,15 @@ export async function removeAnimal(id: string) {
 
 export async function listOccurrences(): Promise<Occurrence[]> {
   if (!isSupabaseConfigured || !supabase) return readLocal(KEYS.occurrences, demoOccurrences)
-  const { data, error } = await supabase
+  const client = supabase
+  const { rows, error } = await fetchAll<any>((from, to) => client
     .from('occurrences')
     .select('*, animals(number)')
     .order('created_at', { ascending: false })
+    .order('id')
+    .range(from, to))
   if (error) throw error
-  return (data ?? []).map((row: any) => ({
+  return rows.map((row: any) => ({
     ...row,
     animal_number: row.animals?.number
   })) as Occurrence[]
@@ -287,9 +327,10 @@ export async function saveOccurrence(input: Omit<Occurrence, 'id' | 'created_at'
 
 export async function listCounts(): Promise<CountSession[]> {
   if (!isSupabaseConfigured || !supabase) return readLocal(KEYS.counts, demoCounts)
-  const { data, error } = await supabase.from('counts').select('*').order('created_at', { ascending: false })
+  const client = supabase
+  const { rows, error } = await fetchAll<any>((from, to) => client.from('counts').select('*').order('created_at', { ascending: false }).order('id').range(from, to))
   if (error) throw error
-  return (data ?? []).map((row: any) => ({ ...row, animal_numbers: row.animal_numbers ?? [] })) as CountSession[]
+  return rows.map((row: any) => ({ ...row, animal_numbers: row.animal_numbers ?? [] })) as CountSession[]
 }
 
 export async function saveCount(input: Omit<CountSession, 'id' | 'created_at'>): Promise<CountSession> {

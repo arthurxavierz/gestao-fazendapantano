@@ -53,9 +53,30 @@ export function writeLocal<T>(key: string, value: T) {
   }
 }
 
+/** Tamanho da página. O Supabase devolve no máximo 1000 linhas por consulta. */
+const PAGE = 1000
+
+/**
+ * Busca todas as linhas, página por página. Sem isso, o histórico de vacinas
+ * e pesagens pararia de crescer em silêncio ao passar de mil registros.
+ */
+export async function fetchAll<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: { code?: string; message?: string } | null }>
+): Promise<{ rows: T[]; error: { code?: string; message?: string } | null }> {
+  const rows: T[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await page(from, from + PAGE - 1)
+    if (error) return { rows, error }
+    rows.push(...((data ?? []) as T[]))
+    if (!data || data.length < PAGE) return { rows, error: null }
+  }
+}
+
 export async function listRows<T extends Row>(table: TableName, fallback: T[], orderBy = 'created_at'): Promise<T[]> {
   if (!isSupabaseConfigured || !supabase) return readLocal<T[]>(localKey(table), fallback)
-  const { data, error } = await supabase.from(table).select('*').order(orderBy, { ascending: false })
+  const client = supabase
+  const { rows, error } = await fetchAll<T>((from, to) =>
+    client.from(table).select('*').order(orderBy, { ascending: false }).order('id').range(from, to))
   if (error) {
     if (isSchemaError(error)) {
       missingTables.add(table)
@@ -64,7 +85,7 @@ export async function listRows<T extends Row>(table: TableName, fallback: T[], o
     throw error
   }
   missingTables.delete(table)
-  return (data ?? []) as T[]
+  return rows
 }
 
 /** Insere várias linhas de uma vez. Campos de autoria e data são do banco. */

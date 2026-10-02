@@ -14,12 +14,14 @@ import type {
 } from './types'
 import {
   createAnimals,
+  insertOccurrences,
   isAnimalsSchemaOutdated,
   listAnimals,
   listCounts,
   listOccurrences,
   loadSettings,
   patchAnimal,
+  patchAnimals,
   removeAnimal,
   saveAnimal,
   saveCount,
@@ -121,6 +123,16 @@ type AppContextValue = {
 
 const AppContext = createContext<AppContextValue | null>(null)
 
+/**
+ * Executa tarefas em paralelo, poucas por vez. Concluir uma etapa para 80
+ * matrizes não pode virar 80 requisições em fila no 3G do curral.
+ */
+async function runPool<T>(items: T[], task: (item: T) => Promise<unknown>, size = 8) {
+  for (let start = 0; start < items.length; start += size) {
+    await Promise.all(items.slice(start, start + size).map(task))
+  }
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [animals, setAnimals] = useState<Animal[]>([])
   const [occurrences, setOccurrences] = useState<Occurrence[]>([])
@@ -211,11 +223,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateAnimal: (id, patch) => mutate(() => patchAnimal(id, patch)),
     updateAnimals: (ids, patch, note) =>
       mutate(async () => {
-        for (const id of ids) {
-          await patchAnimal(id, patch)
-          // A ocorrência deixa a saída no histórico do animal e na linha do tempo da administração.
-          if (note) await saveOccurrence({ animal_id: id, type: note.type, note: note.text })
-        }
+        await patchAnimals(ids, patch)
+        // A ocorrência deixa a saída no histórico do animal e na linha do tempo da administração.
+        if (note) await insertOccurrences(ids.map((id) => ({ animal_id: id, type: note.type, note: note.text })))
       }),
     addOccurrence: (occurrence) => mutate(() => saveOccurrence(occurrence)),
     addCount: (count) => mutate(() => saveCount(count)),
@@ -300,9 +310,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     completeStep: (attemptIds, stepIndex, date, sire) =>
       mutate(async () => {
-        for (const id of attemptIds) {
+        await runPool(attemptIds, async (id) => {
           const attempt = attemptById(id)
-          if (!attempt) continue
+          if (!attempt) return
           const step = attempt.steps[stepIndex]
           const steps_done = [...attempt.steps_done.filter((item) => item.index !== stepIndex), { index: stepIndex, done_at: `${date}T12:00:00` }]
           const patch: Partial<BreedingAttempt> = { steps_done }
@@ -311,14 +321,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             if (sire) patch.sire = sire
           }
           await updateRow<BreedingAttempt>('breeding_attempts', id, patch)
-        }
+        })
       }),
 
     registerDiagnosis: ({ date, entries, discardAnimalIds }) =>
       mutate(async () => {
-        for (const entry of entries) {
+        await runPool(entries, async (entry) => {
           const attempt = attemptById(entry.attemptId)
-          if (!attempt) continue
+          if (!attempt) return
           const diagnosisIndex = attempt.steps.findIndex((step) => step.kind === 'diagnostico')
           const steps_done = diagnosisIndex >= 0 && !attempt.steps_done.some((item) => item.index === diagnosisIndex)
             ? [...attempt.steps_done, { index: diagnosisIndex, done_at: `${date}T12:00:00` }]
@@ -331,13 +341,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             steps_done,
             expected_calving_date: entry.result === 'prenhe' ? expectedCalving(insemination, settings) : null
           })
-        }
-        for (const animalId of discardAnimalIds) {
-          await saveOccurrence({
+        })
+        if (discardAnimalIds.length) {
+          await patchAnimals(discardAnimalIds, { status: 'descarte' })
+          await insertOccurrences(discardAnimalIds.map((animalId) => ({
             animal_id: animalId,
-            type: 'descarte',
+            type: 'descarte' as const,
             note: `Descarte reprodutivo: ${settings.max_breeding_attempts} tentativas seguidas sem prenhez. Separada para abate.`
-          })
+          })))
         }
       }),
 
@@ -420,10 +431,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         })))
         // O peso do cadastro acompanha a pesagem mais recente. Uma pesagem
         // antiga lançada depois não sobrescreve o peso atual.
-        for (const entry of entries) {
-          const newer = weighings.some((item) => item.animal_id === entry.animalId && item.weighed_at > date)
-          if (!newer) await patchAnimal(entry.animalId, { weight: entry.weight })
-        }
+        const current = entries.filter((entry) => !weighings.some((item) => item.animal_id === entry.animalId && item.weighed_at > date))
+        await runPool(current, (entry) => patchAnimal(entry.animalId, { weight: entry.weight }))
       }),
     deleteWeighing: (id) => mutate(() => deleteRow('weighings', id)),
 
