@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Gestão Pecuária',
-        short_name: 'Pecuária',
-        description: 'Gestão pecuária: rebanho, reprodução, sanitário e pesagens',
+        name: 'Gestão Agropecuária',
+        short_name: 'Agropecuária',
+        description: 'Gestão agropecuária: rebanho, reprodução, sanitário e pesagens',
         theme_color: '#0a1f3a',
         background_color: '#f2f5f9',
         display: 'standalone',

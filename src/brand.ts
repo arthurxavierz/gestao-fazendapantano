@@ -27,7 +27,7 @@ const farmName = (import.meta.env.VITE_FARM_NAME as string | undefined)?.trim() 
 export const brand: BrandConfig = isSupabaseConfigured
   ? {
       name: farmName,
-      tagline: 'Gestão pecuária',
+      tagline: 'Gestão agropecuária',
       heroTitle: `${farmName} em números`,
       loginTitle: `Entrar na ${farmName}`,
       documentHeader: farmName,
@@ -35,9 +35,9 @@ export const brand: BrandConfig = isSupabaseConfigured
     }
   : {
       name: 'Achilles',
-      tagline: 'Gestão Pecuária',
+      tagline: 'Gestão Agropecuária',
       heroTitle: 'Seu rebanho em números',
-      loginTitle: 'Entrar na Gestão Pecuária',
-      documentHeader: 'Achilles · Gestão Pecuária',
+      loginTitle: 'Entrar na Gestão Agropecuária',
+      documentHeader: 'Achilles · Gestão Agropecuária',
       achilles: true
     }

@@ -7,7 +7,7 @@ import { brand } from './brand'
 import './styles.css'
 
 registerSW({ immediate: true })
-document.title = brand.achilles ? 'Gestão Pecuária · Achilles' : brand.name
+document.title = brand.achilles ? 'Gestão Agropecuária · Achilles' : brand.name
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

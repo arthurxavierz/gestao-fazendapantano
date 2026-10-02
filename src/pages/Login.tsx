@@ -56,7 +56,7 @@ export function Login() {
       <section className="login-brand-panel">
         <Brand />
         <div className="login-copy">
-          <span className="eyebrow">Gestão pecuária</span>
+          <span className="eyebrow">Gestão agropecuária</span>
           <h1>Do curral ao escritório, o rebanho inteiro na palma da mão.</h1>
           <p>Protocolos de IATF, partos, vacinas, pesagens e compras num só lugar, com a agenda do dia montada sozinha.</p>
         </div>
