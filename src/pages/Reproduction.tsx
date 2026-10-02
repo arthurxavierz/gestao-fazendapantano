@@ -19,7 +19,7 @@ import { useAuth } from '../AuthContext'
 import { Ring } from '../components/charts'
 import { EmptyState } from '../components/EmptyState'
 import { Loading } from '../components/Loading'
-import { AttemptModal, CalvingModal, CompleteStepModal, DiagnosisModal, StartBreedingModal } from '../components/ReproModals'
+import { AttemptModal, CalvingModal, CompleteStepModal, DiagnosisModal, StartBreedingModal, eligibleForBreeding } from '../components/ReproModals'
 import { ReproBadge } from '../components/StatusBadge'
 import { Alert, AttemptDots, Field, Kpi, Modal, PageHeading, Tabs } from '../components/ui'
 import { agendaKindLabel, buildAgenda } from '../domain/agenda'
@@ -313,11 +313,16 @@ function BoardCard({ info, max, onOpen, onStart, onCalving }: {
       break
     case 'parida':
       line = last?.calving_date ? `Pariu ${relativeDay(last.calving_date)}` : 'Pós-parto'
-      sub = 'Pronta para nova estação após o puerpério'
+      sub = eligibleForBreeding(info) ? 'Pronta para novo protocolo' : 'Em puerpério, aguarde para novo protocolo'
       break
     case 'vazia':
-      line = last ? `Último resultado: ${resultLabel[last.result].toLowerCase()}` : 'Sem histórico reprodutivo'
-      sub = last?.diagnosis_date ? `há ${daysBetween(last.diagnosis_date, todayISO())} dias` : ''
+      if (last?.result === 'parida' && last.calving_date) {
+        line = `Pariu há ${daysBetween(last.calving_date, todayISO())} dias`
+        sub = 'Liberada para nova estação'
+      } else {
+        line = last ? `Último resultado: ${resultLabel[last.result].toLowerCase()}` : 'Sem histórico reprodutivo'
+        sub = last?.diagnosis_date ? `há ${daysBetween(last.diagnosis_date, todayISO())} dias` : ''
+      }
       break
     case 'descarte':
       line = 'Separada para abate'
@@ -338,7 +343,7 @@ function BoardCard({ info, max, onOpen, onStart, onCalving }: {
       <p className={`board-line ${overdue ? 'is-late' : ''}`}>{line}</p>
       {sub && <small className="board-sub">{sub}</small>}
       {lastChance && <span className="board-flag">Última tentativa</span>}
-      {(info.state === 'vazia' || info.state === 'parida') && (
+      {eligibleForBreeding(info) && (
         <button className="button button-secondary button-sm board-cta" onClick={(e) => { e.stopPropagation(); onStart() }}>Iniciar protocolo</button>
       )}
       {info.state === 'prenhe' && last && (

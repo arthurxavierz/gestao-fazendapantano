@@ -1,4 +1,4 @@
-import { ClipboardCheck, KeyRound, Mail, PawPrint, ShieldCheck, Stethoscope, Trash2, UserCog, UserPlus, Users } from 'lucide-react'
+import { ClipboardCheck, Dna, KeyRound, Mail, PawPrint, Scale, ShieldCheck, ShoppingCart, Stethoscope, Syringe, Trash2, UserCog, UserPlus, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useAppData } from '../AppContext'
 import { roleLabel, useAuth } from '../AuthContext'
@@ -7,13 +7,13 @@ import { Loading } from '../components/Loading'
 import { listProfiles, updateProfileRole } from '../services/repository'
 import { changeUserEmail, createUser, deleteUser, isUserAdminAvailable, resetUserPassword } from '../services/userAdmin'
 import type { Profile, UserRole } from '../types'
-import { formatDateTime, occurrenceLabel } from '../utils/format'
+import { formatDate, formatDateTime, healthKindLabel, methodLabel, occurrenceLabel, resultLabel } from '../utils/format'
 
 type Tab = 'equipe' | 'atividade'
 
 interface ActivityEntry {
   id: string
-  kind: 'animal' | 'ocorrencia' | 'contagem'
+  kind: 'animal' | 'ocorrencia' | 'contagem' | 'reproducao' | 'sanitario' | 'pesagem' | 'compra'
   title: string
   detail: string
   authorId: string | null
@@ -23,11 +23,15 @@ interface ActivityEntry {
 const kindMeta = {
   animal: { label: 'Cadastro de animal', icon: PawPrint },
   ocorrencia: { label: 'Ocorrência', icon: Stethoscope },
-  contagem: { label: 'Contagem', icon: ClipboardCheck }
+  contagem: { label: 'Contagem', icon: ClipboardCheck },
+  reproducao: { label: 'Reprodução', icon: Dna },
+  sanitario: { label: 'Sanitário', icon: Syringe },
+  pesagem: { label: 'Pesagem', icon: Scale },
+  compra: { label: 'Compra', icon: ShoppingCart }
 } as const
 
 export function Admin() {
-  const { animals, occurrences, counts, loading } = useAppData()
+  const { animals, occurrences, counts, attempts, healthEvents, weighings, batches, loading } = useAppData()
   const { profile: currentProfile } = useAuth()
   const [tab, setTab] = useState<Tab>('atividade')
   const [profiles, setProfiles] = useState<Profile[]>([])
@@ -60,6 +64,8 @@ export function Admin() {
     return map
   }, [profiles])
 
+  const numberOf = useMemo(() => new Map(animals.map((item) => [item.id, item.number])), [animals])
+
   const activity = useMemo<ActivityEntry[]>(() => {
     const entries: ActivityEntry[] = [
       ...animals.map((animal) => ({
@@ -85,6 +91,39 @@ export function Admin() {
         detail: `${item.total_counted} animais contados${item.expected_total != null ? ` de ${item.expected_total} esperados` : ''}`,
         authorId: item.created_by ?? null,
         createdAt: item.created_at
+      })),
+      ...attempts.map((item) => ({
+        id: `reproducao-${item.id}`,
+        kind: 'reproducao' as const,
+        title: `${item.protocol_name ?? methodLabel[item.method]} · matriz ${numberOf.get(item.animal_id) ?? ''}`,
+        detail: `Início ${formatDate(item.start_date)} · ${resultLabel[item.result]}`,
+        authorId: item.created_by ?? null,
+        createdAt: item.created_at
+      })),
+      // Aplicações e pesagens em lote viram uma linha só: mesmo produto/dia e mesma pessoa.
+      ...groupBatch(healthEvents, (item) => `${item.applied_at}|${item.product}|${item.created_by}`).map((group) => ({
+        id: `sanitario-${group[0].id}`,
+        kind: 'sanitario' as const,
+        title: `${healthKindLabel[group[0].kind]} · ${group[0].product}`,
+        detail: `${group.length} ${group.length === 1 ? 'animal' : 'animais'}: ${group.slice(0, 8).map((item) => numberOf.get(item.animal_id)).join(', ')}${group.length > 8 ? '…' : ''}`,
+        authorId: group[0].created_by ?? null,
+        createdAt: group[0].created_at
+      })),
+      ...groupBatch(weighings, (item) => `${item.weighed_at}|${item.created_by}`).map((group) => ({
+        id: `pesagem-${group[0].id}`,
+        kind: 'pesagem' as const,
+        title: `Pesagem de ${group.length} ${group.length === 1 ? 'animal' : 'animais'}`,
+        detail: `Média ${Math.round(group.reduce((sum, item) => sum + Number(item.weight), 0) / group.length)} kg em ${formatDate(group[0].weighed_at)}`,
+        authorId: group[0].created_by ?? null,
+        createdAt: group[0].created_at
+      })),
+      ...batches.map((item) => ({
+        id: `compra-${item.id}`,
+        kind: 'compra' as const,
+        title: `Compra ${item.code}`,
+        detail: [item.supplier, item.quantity ? `${item.quantity} cabeças` : null].filter(Boolean).join(' · ') || 'Lote de compra',
+        authorId: item.created_by ?? null,
+        createdAt: item.created_at
       }))
     ]
 
@@ -92,7 +131,7 @@ export function Admin() {
       .filter((entry) => kindFilter === 'todos' || entry.kind === kindFilter)
       .filter((entry) => authorFilter === 'todos' || entry.authorId === authorFilter)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  }, [animals, occurrences, counts, kindFilter, authorFilter])
+  }, [animals, occurrences, counts, attempts, healthEvents, weighings, batches, numberOf, kindFilter, authorFilter])
 
   /** Agrupa por dia, que é como o responsável pela fazenda pensa a rotina. */
   const activityByDay = useMemo(() => {
@@ -237,6 +276,10 @@ A pessoa perde o acesso imediatamente. Os registros que ela já fez continuam no
                   <option value="animal">Cadastros de animais</option>
                   <option value="ocorrencia">Ocorrências</option>
                   <option value="contagem">Contagens</option>
+                  <option value="reproducao">Reprodução</option>
+                  <option value="sanitario">Sanitário</option>
+                  <option value="pesagem">Pesagens</option>
+                  <option value="compra">Compras</option>
                 </select>
               </label>
             </div>
@@ -358,4 +401,16 @@ A pessoa perde o acesso imediatamente. Os registros que ela já fez continuam no
       )}
     </>
   )
+}
+
+/** Junta registros feitos em lote (mesma chave) numa entrada só do histórico. */
+function groupBatch<T>(items: T[], key: (item: T) => string): T[][] {
+  const groups = new Map<string, T[]>()
+  for (const item of items) {
+    const k = key(item)
+    const list = groups.get(k)
+    if (list) list.push(item)
+    else groups.set(k, [item])
+  }
+  return [...groups.values()]
 }

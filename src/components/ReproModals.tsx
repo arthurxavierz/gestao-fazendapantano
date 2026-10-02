@@ -12,14 +12,24 @@ import {
 } from '../domain/reproduction'
 import { useHerd, type HerdInfo } from '../hooks/useHerd'
 import type { AnimalSex, BreedingAttempt, BreedingMethod, ReproProtocol } from '../types'
-import { addDays, formatDate, formatShortDate, methodLabel, relativeDay, todayISO } from '../utils/format'
+import { addDays, daysBetween, formatDate, formatShortDate, methodLabel, relativeDay, todayISO } from '../utils/format'
 import { AnimalMultiPicker } from './AnimalPicker'
 import { ReproBadge } from './StatusBadge'
 import { Alert, AttemptDots, Field, Modal } from './ui'
 
-/** Matrizes que podem começar uma nova tentativa agora. */
+/** Dias mínimos depois do parto antes de um novo protocolo (puerpério). */
+export const MIN_POSTPARTUM_DAYS = 30
+
+/**
+ * Matrizes que podem começar uma nova tentativa agora: vazias, ou paridas que
+ * já passaram do puerpério. Vaca recém-parida ainda não responde ao protocolo.
+ */
 export function eligibleForBreeding(info: HerdInfo) {
-  return info.breeding && ['vazia', 'parida'].includes(info.state)
+  if (!info.breeding) return false
+  if (info.state === 'vazia') return true
+  if (info.state !== 'parida') return false
+  const last = info.attempts[info.attempts.length - 1]
+  return !last?.calving_date || daysBetween(last.calving_date, todayISO()) >= MIN_POSTPARTUM_DAYS
 }
 
 // ============================================================

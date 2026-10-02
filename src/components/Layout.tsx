@@ -90,6 +90,7 @@ export function Layout() {
   const { isAdmin, role, displayName, signOut } = useAuth()
   const { animals, missingTables, schemaOutdated } = useAppData()
   const quickRef = useRef<HTMLDivElement>(null)
+  const sheetRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setMenuOpen(false)
@@ -99,7 +100,12 @@ export function Layout() {
   useEffect(() => {
     if (!quickOpen) return
     const close = (event: MouseEvent) => {
-      if (quickRef.current && !quickRef.current.contains(event.target as Node)) setQuickOpen(false)
+      // O menu do computador e a folha do celular contam como "dentro": tocar
+      // num atalho não pode fechar o menu antes do clique chegar ao botão.
+      const target = event.target as Node
+      if (quickRef.current?.contains(target) || sheetRef.current?.contains(target)) return
+      if ((target as Element).closest?.('.bottom-fab')) return
+      setQuickOpen(false)
     }
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
@@ -237,7 +243,7 @@ export function Layout() {
 
       {quickOpen && (
         <div className="quick-sheet-backdrop" onClick={() => setQuickOpen(false)}>
-          <div className="quick-sheet" onClick={(e) => e.stopPropagation()}>
+          <div className="quick-sheet" ref={sheetRef} onClick={(e) => e.stopPropagation()}>
             <span className="quick-sheet-handle" />
             <strong className="quick-sheet-title">O que você quer registrar?</strong>
             <QuickMenu onPick={(to) => navigate(to)} sheet />

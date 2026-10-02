@@ -3,11 +3,13 @@ import { AlignmentType, Document, HeadingLevel, ImageRun, Packer, PageOrientatio
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { Animal } from '../types'
-import { formatCoat, formatDate, formatWeight, sexLabel, statusLabel } from './format'
+import { animalCategory, originType } from '../domain/herd'
+import { categoryLabel, formatCoat, formatDate, formatWeight, originLabel, sexLabel, statusLabel } from './format'
 import { fitInside, loadAnimalImages, loadExportImage, type ExportImage } from './images'
 
 const brand = 'Fazenda Pântano'
-const green: [number, number, number] = [23, 63, 44]
+// Azul-marinho da identidade visual, usado nos cabeçalhos das tabelas.
+const green: [number, number, number] = [10, 31, 58]
 
 // Miniatura usada nas listas e foto grande usada nas fichas individuais.
 const THUMB = { maxSide: 320, square: true } as const
@@ -21,22 +23,38 @@ function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] as string))
 }
 
-function animalRows(animal: Animal): [string, string][] {
+/** Dados que dependem de outros cadastros (mãe, compra), resolvidos pela tela. */
+export interface AnimalDocExtra {
+  motherNumber?: string | null
+  batchLabel?: string | null
+}
+
+function animalRows(animal: Animal, extra: AnimalDocExtra = {}): [string, string][] {
+  const category = animalCategory(animal)
+  const origin = originType(animal)
+  const originText = origin === 'nascido' && extra.motherNumber
+    ? `Nascido na fazenda · mãe ${extra.motherNumber}`
+    : origin === 'comprado' && extra.batchLabel
+      ? `Comprado · ${extra.batchLabel}`
+      : origin === 'nao_informado' ? animal.origin || 'Não informado' : originLabel[origin]
   return [
     ['Número', animal.number],
     ['Situação', statusLabel[animal.status]],
+    ['Categoria', category ? categoryLabel[category] : 'Não informado'],
     ['Sexo', sexLabel[animal.sex]],
     ['Raça', animal.breed || 'Não informado'],
     ['Pelagem', formatCoat(animal.coat) || 'Não informado'],
     ['Nascimento', formatDate(animal.birth_date)],
     ['Peso', formatWeight(animal.weight)],
     ['Local ou lote', animal.lot || 'Não informado'],
-    ['Origem', animal.origin || 'Não informado'],
+    ['Origem', originText],
+    ...(animal.sire ? [['Pai (touro / sêmen)', animal.sire] as [string, string]] : []),
+    ['Entrada no rebanho', formatDate(animal.entry_date)],
     ['Observações', animal.notes || 'Sem observações']
   ]
 }
 
-export async function exportAnimalPdf(animal: Animal) {
+export async function exportAnimalPdf(animal: Animal, extra: AnimalDocExtra = {}) {
   const photo = await loadExportImage(animal.photo_url, PORTRAIT)
   const doc = new jsPDF()
   doc.setFont('helvetica', 'bold')
@@ -85,7 +103,7 @@ export async function exportAnimalPdf(animal: Animal) {
     startY,
     theme: 'grid',
     head: [['Campo', 'Informação']],
-    body: animalRows(animal),
+    body: animalRows(animal, extra),
     styles: { fontSize: 10, cellPadding: 4 },
     headStyles: { fillColor: green },
     columnStyles: { 0: { cellWidth: 48, fontStyle: 'bold' } }
@@ -178,7 +196,7 @@ function imageCell(image: ExportImage | undefined, size: number) {
   })
 }
 
-export async function exportAnimalWord(animal: Animal) {
+export async function exportAnimalWord(animal: Animal, extra: AnimalDocExtra = {}) {
   const photo = await loadExportImage(animal.photo_url, PORTRAIT)
   const photoParagraphs = photo
     ? (() => {
@@ -209,7 +227,7 @@ export async function exportAnimalWord(animal: Animal) {
           width: { size: 100, type: WidthType.PERCENTAGE },
           rows: [
             new TableRow({ children: [tableCell('Campo', true), tableCell('Informação', true)] }),
-            ...animalRows(animal).map(([label, value]) => new TableRow({ children: [tableCell(label, true), tableCell(value)] }))
+            ...animalRows(animal, extra).map(([label, value]) => new TableRow({ children: [tableCell(label, true), tableCell(value)] }))
           ]
         }),
         new Paragraph({ text: '' }),
@@ -304,16 +322,16 @@ export async function exportHandlingSheetPdf(animals: Animal[], title = 'Folha d
   doc.save(`${safeFileName(title)}.pdf`)
 }
 
-export async function printAnimal(animal: Animal) {
+export async function printAnimal(animal: Animal, extra: AnimalDocExtra = {}) {
   const photo = await loadExportImage(animal.photo_url, PORTRAIT)
-  const rows = animalRows(animal)
+  const rows = animalRows(animal, extra)
     .slice(1)
     .map(([label, value]) => `<tr><td>${escapeHtml(label)}</td><td>${escapeHtml(value)}</td></tr>`)
     .join('')
 
   const html = `
     <html><head><meta charset="utf-8"><title>Ficha do animal ${escapeHtml(animal.number)}</title><style>
-      body{font-family:Arial,sans-serif;color:#1c2a22;padding:32px} h1{margin:0;color:#173f2c} h2{margin-top:8px}
+      body{font-family:Arial,sans-serif;color:#0b1b2e;padding:32px} h1{margin:0;color:#0a1f3a} h2{margin-top:8px}
       .photo{margin-top:22px} .photo img{max-width:340px;max-height:270px;width:auto;border:1px solid #c4ccc5;border-radius:8px}
       .photo small{display:block;color:#6b7a6f;margin-top:6px}
       table{border-collapse:collapse;width:100%;margin-top:24px} td{border:1px solid #bbb;padding:10px} td:first-child{font-weight:bold;width:32%}
@@ -336,4 +354,46 @@ export async function printAnimal(animal: Animal) {
   if (!popup) return
   popup.document.write(html)
   popup.document.close()
+}
+
+export interface ReproReportRow {
+  number: string
+  category: string
+  lot: string
+  state: string
+  attempts: string
+  protocol: string
+  insemination: string
+  sire: string
+  forecast: string
+}
+
+/** Relação das matrizes com a situação reprodutiva, para a reunião com o veterinário. */
+export function exportReproReportPdf(rows: ReproReportRow[], summary: string) {
+  const doc = new jsPDF({ orientation: 'landscape' })
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(19)
+  doc.text(brand, 14, 17)
+  doc.setFontSize(13)
+  doc.text('Relatório reprodutivo das matrizes', 14, 27)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.text(`Gerado em ${new Intl.DateTimeFormat('pt-BR').format(new Date())} · ${summary}`, 14, 34)
+
+  autoTable(doc, {
+    startY: 40,
+    theme: 'striped',
+    margin: { left: 14, right: 14 },
+    head: [['Matriz', 'Categoria', 'Lote', 'Situação', 'Tentativas', 'Último protocolo', 'Inseminação', 'Touro / sêmen', 'Previsão']],
+    body: rows.map((row) => [row.number, row.category, row.lot, row.state, row.attempts, row.protocol, row.insemination, row.sire, row.forecast]),
+    styles: { fontSize: 8, cellPadding: 2.4, overflow: 'linebreak', valign: 'middle' },
+    headStyles: { fillColor: green },
+    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 18 } },
+    didParseCell: (data) => {
+      // Matrizes em descarte saem em vermelho para chamar a atenção no papel.
+      if (data.section === 'body' && rows[data.row.index]?.state.startsWith('Descarte')) data.cell.styles.textColor = [185, 28, 28]
+    }
+  })
+
+  doc.save('relatorio-reprodutivo.pdf')
 }

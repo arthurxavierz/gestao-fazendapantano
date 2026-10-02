@@ -1,6 +1,6 @@
 # 🐂 Fazenda Pântano
 
-**Controle de rebanho que substitui a planilha.** Aplicativo web instalável no celular, com leitura do brinco por IA, rastreabilidade de quem registrou cada informação e documentos prontos para o curral.
+**Gestão pecuária que substitui a planilha.** Aplicativo web instalável no celular para rebanho de corte e cria: reprodução com protocolos de IATF, partos com genealogia, vacinas com calendário de reforço, pesagens com ganho diário, compras de lotes, leitura do brinco por IA e rastreabilidade de quem registrou cada informação.
 
 [**Ver demonstração**](#)
 
@@ -10,41 +10,68 @@
 
 ## O problema
 
-Uma fazenda de corte controlada por planilhas de Excel: números de brinco digitados à mão, fotos soltas no celular, e nenhuma forma de saber quem lançou o quê. O objetivo não era construir um ERP pecuário, e sim tirar a operação do Excel sem exigir que ninguém aprendesse um sistema complicado.
+Uma fazenda de corte controlada por planilhas de Excel: números de brinco digitados à mão, fotos soltas no celular, protocolos de inseminação anotados em caderno e nenhuma forma de saber quem lançou o quê. O objetivo não era construir um ERP pecuário, e sim tirar a operação do Excel sem exigir que ninguém aprendesse um sistema complicado.
 
 Duas restrições guiaram o projeto: **o operador usa o celular no meio do pasto**, e **o dono precisa confiar no dado**.
 
 ## O que o sistema faz
 
-**Rebanho** — cadastro com foto, situação (normal, observação, doente, morto, vendido), busca por número, raça, local ou situação, e histórico de ocorrências por animal.
+**Painel.** Rebanho ativo, taxa de prenhez, matrizes aguardando diagnóstico e GMD da engorda. Composição por categoria, situação das matrizes, próximas doses, evolução do peso médio e partos previstos por mês. Alertas do que precisa de ação: manejos atrasados, matrizes na última tentativa, partos próximos, animais em carência.
 
-**Leitura do brinco por IA** — a foto é comprimida no celular, enviada a uma Edge Function e analisada pelo Gemini, que devolve número do brinco, pelagem e raça provável, cada um com nível de confiança.
+**Agenda.** Montada sozinha a partir dos registros: etapas de protocolo, diagnósticos, partos previstos e reforços de vacina, agrupados por dia e por lote, com o botão para concluir direto dali.
 
-**Importação de planilha** — leitor próprio de `.xlsx` e CSV, com detecção automática de qual coluna é o quê e conversão de datas, pesos em arroba e variações de sexo e situação.
+**Reprodução.**
+- Protocolos configuráveis (IATF 3 e 4 manejos e repasse com touro já vêm prontos). Cada etapa tem o dia relativo ao D0.
+- Quadro por fase: vazia, em protocolo, aguardando diagnóstico, prenhe, pós-parto e descarte.
+- Etapas concluídas em lote, desmarcando quem não passou pelo curral naquele dia.
+- Diagnóstico de gestação em lote, com previsão de parto calculada pela gestação configurada.
+- **Regra de descarte:** cada vazia ou aborto conta como tentativa sem prenhez. Ao atingir o limite da fazenda (padrão: 4), o sistema propõe enviar a matriz para descarte (abate), a pessoa confirma, a situação muda e fica registrada uma ocorrência com o motivo.
+- Parto que cria o bezerro já vinculado à mãe, ao touro ou sêmen, com data de nascimento, lote e peso ao nascer. Novilha que pariu passa a vaca.
+- Respeito ao puerpério: vaca recém-parida só volta a ficar apta depois de 30 dias.
 
-**Contagens** — conferência rápida por quantidade total ou individual, digitando os brincos conforme os animais passam.
+**Rebanho.**
+- Categoria (bezerro, garrote, novilha, vaca, boi, touro) informada ou deduzida pela idade e sexo, para o cadastro antigo já aparecer classificado.
+- Origem estruturada: **nascido na fazenda** aponta para a mãe; **comprado** aponta para o lote de compra.
+- Ficha com abas: resumo, reprodução, sanitário, pesagens com gráfico, família (mãe, pai, irmãos, crias) e ocorrências.
+- Cadastro de vários animais de uma vez pela faixa de brincos (`401-440, 445`), vinculados à compra.
 
-**Documentos** — ficha individual em PDF, Word e impressão direta com a foto em tamanho grande; relação completa e folha de manejo com miniatura de cada animal; exportação CSV para Excel.
+**Compras.** Lote com fornecedor, GTA, data de entrada, quantidade, valor total e peso médio na chegada. Mostra custo por cabeça, quantos ainda faltam cadastrar e quanto o lote ganhou de peso desde a compra.
 
-**Administração** — linha do tempo de quem registrou o quê, agrupada por dia, com filtros por pessoa e por tipo. Criação de contas, troca de senha e e-mail, e definição de perfis.
+**Sanitário.** Vacinas, vermífugos, carrapaticidas e medicamentos aplicados em um ou vários animais. Atalhos para os produtos comuns já preenchem a próxima dose e a carência. A próxima dose entra na agenda; a carência gera o aviso "não enviar para abate".
+
+**Pesagem.** Modo curral: digita o brinco, Enter, o peso, Enter, e o próximo já fica pronto. Mostra o ganho diário na hora, comparado com a pesagem anterior. Peso médio e GMD por lote, @ estimada.
+
+**Leitura do brinco por IA.** A foto é comprimida no celular, enviada a uma Edge Function e analisada pelo Gemini, que devolve número do brinco, pelagem e raça provável, cada um com nível de confiança.
+
+**Importação de planilha.** Leitor próprio de `.xlsx` e CSV, com detecção automática de qual coluna é o quê.
+
+**Contagens e ocorrências.** Conferência por quantidade ou por brinco; registro de doença, observação, recuperação, morte e descarte.
+
+**Documentos.** Ficha individual em PDF, Word e impressão; relação completa e folha de manejo com miniatura de cada animal; relatório reprodutivo das matrizes; CSV com categoria, origem, mãe, pai e compra.
+
+**Administração.** Linha do tempo de quem registrou o quê (cadastros, ocorrências, contagens, reprodução, vacinas, pesagens e compras), contas e perfis, e as **regras da fazenda**: limite de tentativas até o descarte, duração da gestação, dias até o diagnóstico e idade mínima para reprodução.
 
 ## Decisões técnicas
 
-**A IA sugere, a pessoa confirma.** Nada do que o modelo interpreta é salvo automaticamente. As sugestões aparecem num painel destacado, com nível de confiança, e cada campo tem um botão `Usar` — os campos seguem editáveis e a marcação some quando alguém digita por cima. Um número de brinco errado gravado em silêncio contaminaria o cadastro inteiro, e o erro só apareceria meses depois na conferência.
+**A IA sugere, a pessoa confirma.** Nada do que o modelo interpreta é salvo automaticamente. O mesmo vale para o descarte reprodutivo: o sistema calcula e propõe, mas quem marca é a pessoa.
 
-**Rastreabilidade que não dá para forjar.** A autoria de cada registro é gravada por *trigger* no Postgres, a partir de `auth.uid()`. O cliente não envia esse campo e não consegue alterá-lo.
+**Estado reprodutivo calculado, não gravado.** A fase de cada matriz (vazia, prenhe, pós-parto...) é derivada das tentativas registradas. Não existe um campo "situação reprodutiva" que possa ficar desatualizado em relação ao histórico.
 
-**Permissão no banco, não na interface.** Esconder um botão não é segurança. As políticas de RLS garantem que o operador só leia a própria linha em `profiles` — mesmo consultando a API por fora, ele não converte um identificador em nome de pessoa. Não existe política de `UPDATE` de perfil para operador, então ninguém se promove sozinho, e um *trigger* impede remover o último administrador.
+**Cada tentativa guarda uma cópia das etapas.** Editar um protocolo não reescreve o passado: as tentativas já iniciadas continuam com as etapas que tinham.
 
-**A chave da IA nunca chega ao navegador.** A chamada ao Gemini vive numa Edge Function em Deno; a chave fica nos secrets do Supabase. O modelo é configurável por variável de ambiente, porque o Google aposenta modelos com frequência.
+**Agenda sem agendamento.** Nada é marcado à mão. Datas de etapas, diagnósticos, partos e reforços saem dos registros, então a agenda nunca diverge do que foi lançado.
 
-**Gestão de contas sem expor a `service_role`.** Criar e excluir usuários exige a chave que ignora todo o RLS. Ela vive apenas numa segunda Edge Function, que valida o token do chamador e confere o papel dele no banco antes de qualquer ação — nunca confia no que o cliente afirma sobre si mesmo.
+**Rastreabilidade que não dá para forjar.** A autoria de cada registro, inclusive nas tabelas novas, é gravada por *trigger* no Postgres a partir de `auth.uid()`.
 
-**Leitor de planilha escrito à mão.** O pacote `xlsx` no npm está parado numa versão com duas falhas de severidade alta e sem correção. Em vez de aceitar a dívida, o `.xlsx` é lido descompactando o arquivo com `fflate` (8 KB) e interpretando o XML com o `DOMParser` do próprio navegador — incluindo *shared strings*, strings inline e a conversão de datas seriais do Excel. Custo total no bundle: 18 KB.
+**Permissão no banco, não na interface.** As políticas de RLS garantem que o operador só leia a própria linha em `profiles`. As regras da fazenda todos leem, mas só o administrador altera.
 
-**Funciona sem backend.** Sem `.env`, o app cai num modo de demonstração com `localStorage`, atrás da mesma interface de repositório. Isso permitiu validar as telas com o usuário final antes de provisionar qualquer infraestrutura.
+**Migração sem susto.** O `schema.sql` é idempotente e pode ser executado sobre o banco em produção. Enquanto ele não roda, o app continua funcionando: grava só as colunas antigas, esconde o que depende das tabelas novas e mostra um aviso para o administrador.
 
-**Fotos embutidas nos documentos.** As imagens são baixadas, normalizadas em canvas e embutidas no PDF e no `.docx` — foto grande na ficha individual, miniatura quadrada recortada ao centro nas listagens.
+**A chave da IA nunca chega ao navegador.** A chamada ao Gemini vive numa Edge Function em Deno; a chave fica nos secrets do Supabase.
+
+**Leitor de planilha escrito à mão** e **gráficos em SVG puro.** Sem dependências pesadas para o que cabe em poucas dezenas de linhas. As bibliotecas de PDF e Word só são baixadas quando alguém gera um documento.
+
+**Funciona sem backend.** Sem `.env`, o app abre em modo de demonstração com um rebanho de exemplo completo (matrizes em todas as fases, bezerros com mãe, compras, vacinas e pesagens), atrás da mesma interface de repositório.
 
 ## Stack
 
@@ -57,52 +84,58 @@ npm install
 npm run dev
 ```
 
-Sem arquivo `.env`, o sistema abre em **modo de demonstração** — dá para navegar por todas as telas sem configurar nada. A tela de login permite escolher entre a visão de administrador e a de operador.
+Sem arquivo `.env`, o sistema abre em **modo de demonstração**. O botão "Reiniciar demo", no rodapé do menu, volta o rebanho de exemplo ao estado inicial.
 
 ## Configuração
 
-Para conectar o backend, copie `.env.example` para `.env` e preencha:
+Copie `.env.example` para `.env` e preencha:
 
 ```env
 VITE_SUPABASE_URL=https://SEU-PROJETO.supabase.co
 VITE_SUPABASE_ANON_KEY=sua_chave_anon
 ```
 
-Depois, no painel do Supabase, execute `supabase/schema.sql` no SQL Editor. Ele cria as tabelas, os gatilhos de autoria, as políticas de RLS e o bucket de fotos.
+Depois, no painel do Supabase, execute `supabase/schema.sql` no SQL Editor.
 
-As duas Edge Functions são opcionais e independentes:
+### Atualizando um banco que já está em uso
+
+Execute o `supabase/schema.sql` completo de novo. Ele só cria o que falta:
+
+- colunas novas em `animals` (categoria, origem, mãe, pai, lote de compra, entrada e saída);
+- as tabelas `purchase_batches`, `repro_protocols`, `breeding_attempts`, `health_events`, `weighings` e `farm_settings`, com gatilhos de autoria e RLS;
+- as situações novas `descarte` e `abatido`;
+- os três protocolos iniciais, se a tabela estiver vazia.
+
+Nenhum dado é apagado. Animais com a origem em texto ("Nascido na fazenda", "Comprado") são convertidos automaticamente para a origem estruturada.
+
+### Edge Functions (opcionais)
 
 ```bash
 npx supabase functions deploy analisar-foto        # leitura do brinco por IA
 npx supabase functions deploy gerenciar-usuarios   # gestão de contas pela tela
-```
-
-A primeira precisa de uma chave do Gemini, guardada apenas no servidor:
-
-```bash
 npx supabase secrets set GEMINI_API_KEY=sua_chave
 ```
-
-Sem elas o sistema funciona normalmente: o botão de análise não aparece e as contas são criadas pelo painel do Supabase.
 
 ## Estrutura
 
 ```text
 src/
-  components/   Componentes reutilizáveis (visualizador de foto, painel da IA, layout)
-  pages/        Telas: rebanho, contagens, ocorrências, documentos, administração
-  services/     Supabase, modo demonstração, integração com a IA
-  utils/         Exportadores (PDF/Word), tratamento de imagem, formatação
+  domain/       Regras de negócio puras: reprodução, agenda, sanitário, rebanho
+  components/   Interface reutilizável: gráficos, seletor de animais, formulários de manejo
+  pages/        Telas: painel, agenda, reprodução, manejo, compras, rebanho, documentos
+  hooks/        Visão calculada do rebanho (categoria e fase reprodutiva de cada animal)
+  services/     Supabase, modo demonstração, repositório genérico, IA
+  utils/        Exportadores (PDF/Word), imagens, formatação
 supabase/
-  schema.sql    Tabelas, triggers de autoria, políticas RLS e bucket de fotos
+  schema.sql    Tabelas, triggers de autoria, políticas RLS, bucket de fotos e migração v2
   functions/    Edge Functions: leitura do brinco e gestão de contas
 ```
 
 ## Roadmap
 
 - Identificar o animal pela foto no curral, buscando o brinco lido entre os cadastrados
-- Histórico de pesagens
-- Registros de campo em modo offline
+- Registros de campo em modo offline, sincronizados quando voltar o sinal
+- Módulo financeiro: custo por arroba e resultado por lote
 
 ---
 

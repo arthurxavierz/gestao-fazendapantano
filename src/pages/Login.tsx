@@ -11,13 +11,13 @@ const tabs: { role: UserRole; label: string; icon: typeof ShieldCheck; hint: str
     role: 'operador',
     label: 'Operador',
     icon: HardHat,
-    hint: 'Acesso ao rebanho: cadastro, consulta, ocorrências, contagens e documentos.'
+    hint: 'Rebanho, reprodução, vacinas, pesagens, contagens e documentos.'
   },
   {
     role: 'administrador',
     label: 'Administrador',
     icon: ShieldCheck,
-    hint: 'Tudo do operador, mais a equipe e o histórico de quem registrou cada informação.'
+    hint: 'Tudo do operador, mais a equipe, as regras da fazenda e o histórico de quem registrou cada informação.'
   }
 ]
 
@@ -55,9 +55,9 @@ export function Login() {
       <section className="login-brand-panel">
         <Brand />
         <div className="login-copy">
-          <span className="eyebrow">Gestão simples do rebanho</span>
-          <h1>Informação clara para quem está no escritório e para quem está no campo.</h1>
-          <p>Cadastros, ocorrências, contagens e folhas de controle em um único lugar.</p>
+          <span className="eyebrow">Gestão pecuária</span>
+          <h1>Do curral ao escritório, o rebanho inteiro na palma da mão.</h1>
+          <p>Protocolos de IATF, partos, vacinas, pesagens e compras num só lugar, com a agenda do dia montada sozinha.</p>
         </div>
         <div className="login-feature"><ShieldCheck /><span>Cada pessoa entra com o próprio acesso, e o sistema registra quem fez cada lançamento.</span></div>
       </section>

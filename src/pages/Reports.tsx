@@ -1,12 +1,17 @@
-import { FileDown, FileSpreadsheet, FileText, Filter, Printer, Search } from 'lucide-react'
+import { Dna, FileDown, FileSpreadsheet, FileText, Filter, Printer, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useAppData } from '../AppContext'
 import type { AnimalStatus } from '../types'
-import { exportAnimalsPdf, exportAnimalsWord, exportHandlingSheetPdf } from '../utils/exporters'
-import { formatCoat, statusLabel } from '../utils/format'
+// As bibliotecas de PDF e Word são pesadas: carregam só no clique, não na abertura do app.
+const exporters = () => import('../utils/exporters')
+import { useHerd } from '../hooks/useHerd'
+import { originType } from '../domain/herd'
+import { reproIndicators, reproStateLabel } from '../domain/reproduction'
+import { categoryLabel, formatCoat, formatDate, methodLabel, originLabel, statusLabel } from '../utils/format'
 
 export function Reports() {
-  const { animals } = useAppData()
+  const { animals, batches, attempts, settings } = useAppData()
+  const herd = useHerd()
   const [status, setStatus] = useState<string>('ativos')
   const [query, setQuery] = useState('')
   const [generating, setGenerating] = useState<string | null>(null)
@@ -35,20 +40,31 @@ export function Reports() {
   }
 
   function exportCsv() {
-    const header = ['Número', 'Situação', 'Sexo', 'Raça', 'Pelagem', 'Nascimento', 'Peso', 'Local ou lote', 'Origem', 'Observações', 'Link da foto']
-    const rows = selectedAnimals.map((animal) => [
-      animal.number,
-      statusLabel[animal.status],
-      animal.sex,
-      animal.breed || '',
-      formatCoat(animal.coat),
-      animal.birth_date || '',
-      animal.weight ?? '',
-      animal.lot || '',
-      animal.origin || '',
-      animal.notes || '',
-      animal.photo_url?.startsWith('http') ? animal.photo_url : ''
-    ])
+    const numberOf = new Map(animals.map((item) => [item.id, item.number]))
+    const batchOf = new Map(batches.map((item) => [item.id, item.code]))
+    const header = ['Número', 'Situação', 'Categoria', 'Sexo', 'Raça', 'Pelagem', 'Nascimento', 'Peso', 'Local ou lote', 'Origem', 'Mãe', 'Pai', 'Lote de compra', 'Entrada', 'Situação reprodutiva', 'Observações', 'Link da foto']
+    const rows = selectedAnimals.map((animal) => {
+      const info = herd.get(animal.id)
+      return [
+        animal.number,
+        statusLabel[animal.status],
+        info?.category ? categoryLabel[info.category] : '',
+        animal.sex,
+        animal.breed || '',
+        formatCoat(animal.coat),
+        animal.birth_date || '',
+        animal.weight ?? '',
+        animal.lot || '',
+        originLabel[originType(animal)],
+        animal.mother_id ? numberOf.get(animal.mother_id) ?? '' : '',
+        animal.sire || '',
+        animal.purchase_batch_id ? batchOf.get(animal.purchase_batch_id) ?? '' : '',
+        animal.entry_date || '',
+        info?.breeding ? reproStateLabel[info.state] : '',
+        animal.notes || '',
+        animal.photo_url?.startsWith('http') ? animal.photo_url : ''
+      ]
+    })
     const csv = [header, ...rows].map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(';')).join('\n')
     const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
@@ -57,6 +73,32 @@ export function Reports() {
     link.download = 'relacao-animais.csv'
     link.click()
     URL.revokeObjectURL(url)
+  }
+
+  async function exportRepro() {
+    const indicators = reproIndicators(animals, attempts, settings)
+    const rows = [...herd.females]
+      .sort((a, b) => a.animal.number.localeCompare(b.animal.number, 'pt-BR', { numeric: true }))
+      .map((info) => {
+        const last = info.attempts[info.attempts.length - 1]
+        const forecast = last?.result === 'prenhe' && last.expected_calving_date
+          ? `Parto ${formatDate(last.expected_calving_date)}`
+          : last?.result === 'parida' && last.calving_date ? `Pariu ${formatDate(last.calving_date)}` : ''
+        return {
+          number: info.animal.number,
+          category: info.category ? categoryLabel[info.category] : '',
+          lot: info.animal.lot || '',
+          state: reproStateLabel[info.state],
+          attempts: `${info.streak} de ${settings.max_breeding_attempts}`,
+          protocol: last ? last.protocol_name ?? methodLabel[last.method] : '',
+          insemination: last?.insemination_date ? formatDate(last.insemination_date) : '',
+          sire: last?.sire || '',
+          forecast
+        }
+      })
+    const rate = indicators.pregnancyRate == null ? '—' : `${Math.round(indicators.pregnancyRate * 100)}%`
+    const { exportReproReportPdf } = await exporters()
+    exportReproReportPdf(rows, `${indicators.females} matrizes · ${indicators.pregnant} prenhes · taxa de prenhez ${rate} · limite de ${settings.max_breeding_attempts} tentativas`)
   }
 
   return (
@@ -84,8 +126,8 @@ export function Reports() {
           <h2>Lista dos animais</h2>
           <p>Foto, número, situação, sexo, raça, peso, local e observações em formato de tabela.</p>
           <div className="report-actions">
-            <button className="button button-primary" onClick={() => void generate('lista-pdf', () => exportAnimalsPdf(selectedAnimals))} disabled={!selectedAnimals.length || Boolean(generating)}><FileDown size={18} /> {generating === 'lista-pdf' ? 'Gerando' : 'PDF'}</button>
-            <button className="button button-secondary" onClick={() => void generate('lista-word', () => exportAnimalsWord(selectedAnimals))} disabled={!selectedAnimals.length || Boolean(generating)}><FileDown size={18} /> {generating === 'lista-word' ? 'Gerando' : 'Word'}</button>
+            <button className="button button-primary" onClick={() => void generate('lista-pdf', async () => (await exporters()).exportAnimalsPdf(selectedAnimals))} disabled={!selectedAnimals.length || Boolean(generating)}><FileDown size={18} /> {generating === 'lista-pdf' ? 'Gerando' : 'PDF'}</button>
+            <button className="button button-secondary" onClick={() => void generate('lista-word', async () => (await exporters()).exportAnimalsWord(selectedAnimals))} disabled={!selectedAnimals.length || Boolean(generating)}><FileDown size={18} /> {generating === 'lista-word' ? 'Gerando' : 'Word'}</button>
           </div>
         </article>
 
@@ -94,7 +136,7 @@ export function Reports() {
           <span className="eyebrow">Uso no curral</span>
           <h2>Folha de controle de manejo</h2>
           <p>Gera uma folha com a foto de cada animal e espaço para presença, situação, peso, observação e assinatura do responsável.</p>
-          <div className="report-actions"><button className="button button-light" onClick={() => void generate('manejo', () => exportHandlingSheetPdf(selectedAnimals))} disabled={Boolean(generating)}><Printer size={18} /> {generating === 'manejo' ? 'Gerando' : 'Preparar folha'}</button></div>
+          <div className="report-actions"><button className="button button-light" onClick={() => void generate('manejo', async () => (await exporters()).exportHandlingSheetPdf(selectedAnimals))} disabled={Boolean(generating)}><Printer size={18} /> {generating === 'manejo' ? 'Gerando' : 'Preparar folha'}</button></div>
         </article>
 
         <article className="report-card">
@@ -103,6 +145,14 @@ export function Reports() {
           <h2>Arquivo CSV</h2>
           <p>Compatível com Excel para manter uma cópia dos dados ou realizar análises adicionais.</p>
           <div className="report-actions"><button className="button button-secondary" onClick={exportCsv} disabled={!selectedAnimals.length}><FileDown size={18} /> Baixar CSV</button></div>
+        </article>
+
+        <article className="report-card">
+          <div className="report-icon"><Dna /></div>
+          <span className="eyebrow">Reprodução</span>
+          <h2>Relatório reprodutivo</h2>
+          <p>Todas as matrizes com situação, tentativas, último protocolo, touro e previsão de parto. Bom para levar ao veterinário.</p>
+          <div className="report-actions"><button className="button button-primary" onClick={() => void exportRepro()} disabled={!herd.females.length}><FileDown size={18} /> PDF</button></div>
         </article>
       </section>
 

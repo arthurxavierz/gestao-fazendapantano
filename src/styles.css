@@ -684,7 +684,8 @@ small { font-size: .78rem; }
 .modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 14px 24px; border-top: 1px solid var(--line); background: var(--surface-2); }
 .modal-summary { margin-right: auto; color: var(--muted); font-size: .82rem; font-weight: 650; }
 .modal-text { font-size: .88rem; color: var(--ink-2); }
-.modal-split { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.modal-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; }
+.modal-split > * { min-width: 0; }
 .modal-footer-links { display: flex; justify-content: space-between; gap: 12px; padding-top: 16px; margin-top: 8px; border-top: 1px solid var(--line); }
 
 /* Modais antigos que montam o próprio form */
@@ -693,7 +694,7 @@ form.modal:not(:has(.modal-body)) .modal-head, div.modal:not(:has(.modal-body)) 
 form.modal:not(:has(.modal-body)) .modal-actions, div.modal:not(:has(.modal-body)) .modal-actions { margin: 8px -24px -24px; }
 
 /* Seletor de animais em lote */
-.picker { display: grid; gap: 8px; }
+.picker { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
 .picker-toolbar { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; }
 .picker-toolbar .select-compact { max-width: 180px; }
 .picker-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: .82rem; }
@@ -968,7 +969,7 @@ form.modal:not(:has(.modal-body)) .modal-actions, div.modal:not(:has(.modal-body
 
 .report-filter-panel { margin-bottom: 16px; }
 .selection-count { color: var(--accent-700); font-size: .86rem; }
-.report-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
 .report-card { min-height: 300px; display: flex; flex-direction: column; align-items: flex-start; padding: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-xs); }
 .report-icon { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; background: var(--accent-50); color: var(--accent-600); margin-bottom: 22px; }
 .report-card p { font-size: .86rem; flex: 1; }
@@ -1142,11 +1143,10 @@ form.modal:not(:has(.modal-body)) .modal-actions, div.modal:not(:has(.modal-body
   .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dash-grid { grid-template-columns: 1fr 1fr; }
   .dash-grid .panel-span-2 { grid-column: 1 / -1; }
-  .report-grid { grid-template-columns: 1fr 1fr; }
   .admin-metrics { grid-template-columns: repeat(2, 1fr); }
   .filters-panel.filters-4 { grid-template-columns: 1fr 1fr; }
   .filters-panel.filters-4 .view-toggle { justify-self: start; }
-  .modal-split { grid-template-columns: 1fr; }
+  .modal-split { grid-template-columns: minmax(0, 1fr); }
   .topbar-date { display: none; }
 }
 
@@ -1205,7 +1205,15 @@ form.modal:not(:has(.modal-body)) .modal-actions, div.modal:not(:has(.modal-body
   .hero-stats { grid-template-columns: repeat(3, 1fr); width: 100%; }
   .hero-stats div { min-width: 0; padding: 12px; }
   .hero-stats strong { font-size: 1.5rem; }
-  .hero-actions .button { flex: 1; }
+  .hero-actions { flex-wrap: nowrap; gap: 6px; }
+  .hero-actions .button { flex: 1; min-width: 0; padding: 0 8px; font-size: .78rem; gap: 5px; }
+  .hero-actions .button svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .hero h1 { font-size: 1.6rem; }
+  .hero p { font-size: .88rem; margin-bottom: 16px; }
+  .alert-strip { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px 14px; padding: 2px 16px 6px; scroll-snap-type: x proximity; scrollbar-width: none; }
+  .alert-strip::-webkit-scrollbar { display: none; }
+  .alert-chip { flex: 0 0 auto; max-width: 78vw; scroll-snap-align: start; }
+  .alert-chip span { white-space: normal; line-height: 1.3; }
   .kpi-grid, .kpi-grid-6 { grid-template-columns: 1fr 1fr; gap: 10px; }
   .kpi { min-height: 112px; padding: 14px; }
   .kpi-value { font-size: 1.5rem; }
@@ -1228,8 +1236,13 @@ form.modal:not(:has(.modal-body)) .modal-actions, div.modal:not(:has(.modal-body
   .photo-preview { width: 84px; height: 84px; }
   .detail-list { grid-template-columns: 1fr; }
   .tabs { width: 100%; }
-  .board { grid-auto-columns: 82%; scroll-snap-type: x mandatory; }
-  .board-column { scroll-snap-align: start; }
+  .board { grid-auto-flow: row; grid-auto-columns: auto; overflow: visible; gap: 10px; }
+  .board-column { min-height: 0; }
+  .board-column:not(:has(.board-card)) .board-cards { display: none; }
+  .board-cards { max-height: none; grid-template-columns: 1fr 1fr; }
+  .board-card .attempt-dots i { width: 7px; height: 7px; }
+  .board-toolbar { display: grid; grid-template-columns: 1fr auto; }
+  .board-toolbar .search-box { width: auto; }
   .task-card { grid-template-columns: 1fr; gap: 10px; }
   .task-date { display: flex; gap: 8px; align-items: baseline; }
   .task-action .button { width: 100%; }
@@ -1252,7 +1265,7 @@ form.modal:not(:has(.modal-body)) .modal-actions, div.modal:not(:has(.modal-body
   .picker-toolbar { grid-template-columns: 1fr 1fr; }
   .picker-toolbar .search-box { grid-column: 1 / -1; }
   .picker-toolbar .select-compact { max-width: none; }
-  .picker-list { grid-template-columns: 1fr 1fr; max-height: 300px; }
+  .picker-list { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 300px; }
   .modal-backdrop { padding: 0; place-items: end center; }
   .modal, .modal-md, .modal-lg, .modal-xl, .modal-wide { width: 100%; max-height: 92vh; border-radius: 22px 22px 0 0; }
   .modal-head { padding: 18px 18px 12px; }
@@ -1280,10 +1293,18 @@ form.modal:not(:has(.modal-body)) .modal-actions, div.modal:not(:has(.modal-body
 }
 
 @media (max-width: 380px) {
-  .kpi-grid, .kpi-grid-6 { grid-template-columns: 1fr; }
+  .kpi { padding: 12px; min-height: 100px; }
+  .kpi-icon { width: 28px; height: 28px; border-radius: 8px; }
+  .kpi-icon svg { width: 15px; height: 15px; }
+  .kpi-label { font-size: .72rem; }
+  .kpi-value { font-size: 1.35rem; padding-top: 10px; }
   .bottom-nav a span { font-size: .56rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+.activity-reproducao { background: var(--violet-50); color: var(--violet); }
+.activity-sanitario { background: var(--amber-50); color: var(--amber); }
+.activity-pesagem { background: var(--teal-50); color: var(--teal); }
+.activity-compra { background: var(--slate-100); color: var(--navy-700); }

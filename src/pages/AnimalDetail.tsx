@@ -32,7 +32,6 @@ import { inWithdrawal } from '../domain/health'
 import { pendingAttempt, reproStateLabel } from '../domain/reproduction'
 import { useHerd } from '../hooks/useHerd'
 import type { BreedingAttempt, OccurrenceType } from '../types'
-import { exportAnimalPdf, exportAnimalWord, printAnimal } from '../utils/exporters'
 import {
   categoryLabel,
   formatAge,
@@ -117,9 +116,15 @@ export function AnimalDetail() {
     if (generating) return
     setGenerating(kind)
     try {
-      if (kind === 'pdf') await exportAnimalPdf(animal)
-      else if (kind === 'word') await exportAnimalWord(animal)
-      else await printAnimal(animal)
+      const extra = {
+        motherNumber: mother?.number ?? null,
+        batchLabel: batch ? [batch.code, batch.supplier, formatDate(batch.purchase_date)].filter(Boolean).join(' · ') : null
+      }
+      // As bibliotecas de PDF e Word só são baixadas quando alguém pede um documento.
+      const { exportAnimalPdf, exportAnimalWord, printAnimal } = await import('../utils/exporters')
+      if (kind === 'pdf') await exportAnimalPdf(animal, extra)
+      else if (kind === 'word') await exportAnimalWord(animal, extra)
+      else await printAnimal(animal, extra)
     } finally {
       setGenerating(null)
     }
