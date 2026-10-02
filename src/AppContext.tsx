@@ -97,6 +97,8 @@ type AppContextValue = {
   createAnimalsBulk: (animals: NewAnimal[]) => Promise<Animal[]>
   deleteAnimal: (id: string) => Promise<void>
   updateAnimal: (id: string, patch: Partial<Animal>) => Promise<void>
+  /** Mesma alteração em vários animais (mudança de lote, saída em lote). */
+  updateAnimals: (ids: string[], patch: Partial<Animal>, note?: { type: Occurrence['type']; text: string }) => Promise<void>
   addOccurrence: (occurrence: Omit<Occurrence, 'id' | 'created_at'>) => Promise<Occurrence>
   addCount: (count: Omit<CountSession, 'id' | 'created_at'>) => Promise<CountSession>
   saveBatch: (batch: Partial<PurchaseBatch> & Pick<PurchaseBatch, 'code' | 'purchase_date'>) => Promise<PurchaseBatch>
@@ -207,6 +209,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     createAnimalsBulk: (items) => mutate(() => createAnimals(items)),
     deleteAnimal: (id) => mutate(() => removeAnimal(id)),
     updateAnimal: (id, patch) => mutate(() => patchAnimal(id, patch)),
+    updateAnimals: (ids, patch, note) =>
+      mutate(async () => {
+        for (const id of ids) {
+          await patchAnimal(id, patch)
+          // A ocorrência deixa a saída no histórico do animal e na linha do tempo da administração.
+          if (note) await saveOccurrence({ animal_id: id, type: note.type, note: note.text })
+        }
+      }),
     addOccurrence: (occurrence) => mutate(() => saveOccurrence(occurrence)),
     addCount: (count) => mutate(() => saveCount(count)),
 

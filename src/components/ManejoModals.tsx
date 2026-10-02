@@ -277,3 +277,129 @@ export function WeighingModal({ onClose, preselected = [] }: { onClose: () => vo
     </Modal>
   )
 }
+
+// ============================================================
+// Movimentação: troca de lote e saída do rebanho em lote
+// ============================================================
+type ExitKind = 'vendido' | 'abatido' | 'morto'
+
+const exitLabel: Record<ExitKind, string> = {
+  vendido: 'Venda',
+  abatido: 'Abate',
+  morto: 'Morte'
+}
+
+export function MovementModal({ onClose, preselected = [], initialMode = 'lote' }: { onClose: () => void; preselected?: string[]; initialMode?: 'lote' | 'saida' }) {
+  const { animals, healthEvents, updateAnimals } = useAppData()
+  const [mode, setMode] = useState<'lote' | 'saida'>(initialMode)
+  const [lot, setLot] = useState('')
+  const [exitKind, setExitKind] = useState<ExitKind>('vendido')
+  const [date, setDate] = useState(todayISO())
+  const [reason, setReason] = useState('')
+  const [selected, setSelected] = useState<string[]>(preselected)
+  const [acceptWithdrawal, setAcceptWithdrawal] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const candidates = useMemo(() => animals.filter(isActive), [animals])
+  const lots = useMemo(() => [...new Set(animals.map((item) => item.lot).filter(Boolean) as string[])].sort(), [animals])
+  const numberOf = useMemo(() => new Map(animals.map((item) => [item.id, item.number])), [animals])
+
+  // Venda ou abate de animal em carência é o erro mais caro do sanitário: avisa e exige confirmação.
+  const inWithdrawalIds = mode === 'saida' && exitKind !== 'morto'
+    ? selected.filter((id) => healthEvents.some((event) => event.animal_id === id && event.withdrawal_until && event.withdrawal_until >= date))
+    : []
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    if (!selected.length) return
+    setSaving(true)
+    setError(null)
+    try {
+      if (mode === 'lote') {
+        await updateAnimals(selected, { lot: lot.trim() || null })
+      } else {
+        const text = `${exitLabel[exitKind]} em ${date.split('-').reverse().join('/')}${reason.trim() ? `: ${reason.trim()}` : ''}`
+        await updateAnimals(
+          selected,
+          { status: exitKind, exit_date: date, exit_reason: reason.trim() || exitLabel[exitKind] },
+          { type: exitKind === 'morto' ? 'morte' : 'outro', text }
+        )
+      }
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível salvar a movimentação.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const blocked = inWithdrawalIds.length > 0 && !acceptWithdrawal
+
+  return (
+    <Modal
+      title="Movimentação"
+      eyebrow="Troca de lote ou saída do rebanho"
+      onClose={onClose}
+      onSubmit={submit}
+      size="xl"
+      footer={<>
+        <button type="button" className="button button-ghost" onClick={onClose}>Cancelar</button>
+        <button className="button button-primary" disabled={saving || !selected.length || (mode === 'lote' && !lot.trim()) || blocked}>
+          {saving ? 'Salvando' : mode === 'lote' ? `Mover ${selected.length} para ${lot.trim() || '...'}` : `Registrar ${exitLabel[exitKind].toLowerCase()} de ${selected.length}`}
+        </button>
+      </>}
+    >
+      <div className="segmented-inline">
+        <button type="button" className={mode === 'lote' ? 'selected' : ''} onClick={() => setMode('lote')}>Mudar de lote</button>
+        <button type="button" className={mode === 'saida' ? 'selected' : ''} onClick={() => setMode('saida')}>Saída (venda, abate, morte)</button>
+      </div>
+      <div className="modal-split">
+        <div>
+          {mode === 'lote' ? (
+            <>
+              <Field label="Novo lote ou local" required hint="Escolha um existente ou digite um novo.">
+                <input value={lot} onChange={(e) => setLot(e.target.value)} list="move-lots" placeholder="Ex.: Confinamento Baia 3" autoFocus />
+              </Field>
+              <datalist id="move-lots">{lots.map((item) => <option key={item} value={item} />)}</datalist>
+              <div className="chip-row">
+                {lots.map((item) => <button type="button" key={item} className={`chip ${lot === item ? 'selected' : ''}`} onClick={() => setLot(item)}>{item}</button>)}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="form-grid two">
+                <Field label="Tipo de saída">
+                  <select value={exitKind} onChange={(e) => setExitKind(e.target.value as ExitKind)}>
+                    <option value="vendido">Venda</option>
+                    <option value="abatido">Abate</option>
+                    <option value="morto">Morte</option>
+                  </select>
+                </Field>
+                <Field label="Data" required><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+              </div>
+              <Field label={exitKind === 'morto' ? 'Causa' : 'Destino'}>
+                <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={exitKind === 'morto' ? 'Ex.: picada de cobra' : 'Ex.: Frigorífico Minerva, romaneio 1234'} />
+              </Field>
+              <p className="field-hint">Os animais saem do rebanho ativo, mas o histórico completo continua guardado.</p>
+              {inWithdrawalIds.length > 0 && (
+                <Alert tone="warning">
+                  <strong>{inWithdrawalIds.length} animal(is) em carência na data:</strong> {inWithdrawalIds.map((id) => numberOf.get(id)).join(', ')}.
+                  <label className="switch-row">
+                    <input type="checkbox" checked={acceptWithdrawal} onChange={(e) => setAcceptWithdrawal(e.target.checked)} />
+                    <span>Estou ciente e quero registrar mesmo assim</span>
+                  </label>
+                </Alert>
+              )}
+            </>
+          )}
+        </div>
+        <div>
+          <span className="field-label">Animais</span>
+          <AnimalMultiPicker animals={candidates} selected={selected} onChange={setSelected} />
+        </div>
+      </div>
+      {error && <Alert>{error}</Alert>}
+    </Modal>
+  )
+}

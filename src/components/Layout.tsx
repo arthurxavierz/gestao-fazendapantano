@@ -1,4 +1,5 @@
 import {
+  ArrowLeftRight,
   CalendarDays,
   ClipboardCheck,
   Database,
@@ -76,6 +77,7 @@ const quickActions: { to: string; label: string; hint: string; icon: LucideIcon 
   { to: '/manejo?acao=pesagem', label: 'Pesagem', hint: 'Pesar um lote no curral', icon: Scale },
   { to: '/manejo?acao=vacina', label: 'Vacina ou remédio', hint: 'Aplicar em um ou vários', icon: Syringe },
   { to: '/reproducao?acao=protocolo', label: 'Iniciar protocolo', hint: 'IATF ou monta', icon: Dna },
+  { to: '/manejo?acao=movimentar', label: 'Movimentação', hint: 'Trocar de lote, venda, abate', icon: ArrowLeftRight },
   { to: '/ocorrencias?nova=1', label: 'Ocorrência', hint: 'Doença, observação, morte', icon: HeartPulse },
   { to: '/contagens?nova=1', label: 'Contagem', hint: 'Conferir um curral ou pasto', icon: ClipboardCheck }
 ]

@@ -1,4 +1,4 @@
-import { AlertTriangle, CalendarClock, Plus, Scale, ShieldAlert, Syringe, Trash2, TrendingUp, Weight } from 'lucide-react'
+import { AlertTriangle, ArrowLeftRight, CalendarClock, Plus, Scale, ShieldAlert, Syringe, Trash2, TrendingUp, Weight } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAppData } from '../AppContext'
@@ -6,7 +6,7 @@ import { useAuth } from '../AuthContext'
 import { BarList } from '../components/charts'
 import { EmptyState } from '../components/EmptyState'
 import { Loading } from '../components/Loading'
-import { HealthModal, WeighingModal } from '../components/ManejoModals'
+import { HealthModal, MovementModal, WeighingModal } from '../components/ManejoModals'
 import { Kpi, PageHeading, PanelHead, Pill, Tabs } from '../components/ui'
 import { dailyGain, formatGain, isActive, weighingsOf } from '../domain/herd'
 import { inWithdrawal, pendingDoses } from '../domain/health'
@@ -14,7 +14,7 @@ import { addDays, formatArroba, formatDate, formatShortDate, healthKindLabel, re
 
 type Tab = 'sanitario' | 'pesagem'
 
-type Dialog = { kind: 'health'; product?: string; animalIds?: string[] } | { kind: 'weigh' } | null
+type Dialog = { kind: 'health'; product?: string; animalIds?: string[] } | { kind: 'weigh' } | { kind: 'move' } | null
 
 export function Manejo() {
   const { animals, healthEvents, weighings, loading, deleteHealthEvent, deleteWeighing } = useAppData()
@@ -27,6 +27,7 @@ export function Manejo() {
     const action = params.get('acao')
     if (action === 'pesagem') setDialog({ kind: 'weigh' })
     if (action === 'vacina') setDialog({ kind: 'health' })
+    if (action === 'movimentar') setDialog({ kind: 'move' })
     if (action) {
       params.delete('acao')
       setParams(params, { replace: true })
@@ -112,6 +113,7 @@ export function Manejo() {
         title="Sanitário e pesagem"
         text="Vacinas com reforço automático na agenda, controle de carência e pesagens com ganho diário."
         actions={<>
+          <button className="button button-secondary" onClick={() => setDialog({ kind: 'move' })}><ArrowLeftRight size={18} /> Movimentar</button>
           <button className="button button-secondary" onClick={() => setDialog({ kind: 'weigh' })}><Scale size={18} /> Nova pesagem</button>
           <button className="button button-primary" onClick={() => setDialog({ kind: 'health' })}><Syringe size={18} /> Aplicar vacina ou remédio</button>
         </>}
@@ -272,6 +274,7 @@ export function Manejo() {
 
       {dialog?.kind === 'health' && <HealthModal product={dialog.product} preselected={dialog.animalIds} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'weigh' && <WeighingModal onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'move' && <MovementModal onClose={() => setDialog(null)} />}
     </>
   )
 }

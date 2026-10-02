@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  ArrowLeftRight,
   Baby,
   Camera,
   Edit3,
@@ -22,7 +23,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAppData } from '../AppContext'
 import { LineChart } from '../components/charts'
 import { EmptyState } from '../components/EmptyState'
-import { HealthModal, WeighingModal } from '../components/ManejoModals'
+import { HealthModal, MovementModal, WeighingModal } from '../components/ManejoModals'
 import { PhotoViewer } from '../components/PhotoViewer'
 import { AttemptModal, CalvingModal, CompleteStepModal, DiagnosisModal, StartBreedingModal, eligibleForBreeding } from '../components/ReproModals'
 import { ReproBadge, StatusBadge } from '../components/StatusBadge'
@@ -57,6 +58,7 @@ type Dialog =
   | { kind: 'occurrence' }
   | { kind: 'weigh' }
   | { kind: 'health' }
+  | { kind: 'move' }
   | { kind: 'start' }
   | { kind: 'attempt'; attempt: BreedingAttempt }
   | { kind: 'step'; attemptId: string; stepIndex: number }
@@ -193,6 +195,7 @@ export function AnimalDetail() {
           {showRepro && eligibleForBreeding(info) && <button onClick={() => setDialog({ kind: 'start' })}><Dna size={17} /> Iniciar protocolo</button>}
           {info.state === 'prenhe' && lastAttempt && <button onClick={() => setDialog({ kind: 'calving', attemptId: lastAttempt.id })}><Baby size={17} /> Registrar parto</button>}
           {isFemale && <button onClick={() => navigate(`/animais/novo?mae=${animal.id}`)}><Plus size={17} /> Cadastrar cria</button>}
+          <button onClick={() => setDialog({ kind: 'move' })}><ArrowLeftRight size={17} /> Mover ou dar saída</button>
         </div>
       </section>
 
@@ -410,6 +413,7 @@ export function AnimalDetail() {
       )}
       {dialog?.kind === 'weigh' && <WeighingModal preselected={[animal.id]} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'health' && <HealthModal preselected={[animal.id]} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'move' && <MovementModal preselected={[animal.id]} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'start' && <StartBreedingModal preselected={[animal.id]} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'attempt' && (
         <AttemptModal
