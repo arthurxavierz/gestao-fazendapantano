@@ -1,4 +1,4 @@
-import { Dna, FileDown, FileSpreadsheet, FileText, Filter, Printer, Search } from 'lucide-react'
+import { Dna, FileDown, FileSpreadsheet, FileText, Filter, Printer, ScanLine, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useAppData } from '../AppContext'
 import type { AnimalStatus } from '../types'
@@ -145,6 +145,18 @@ export function Reports() {
           <h2>Arquivo CSV</h2>
           <p>Compatível com Excel para manter uma cópia dos dados ou realizar análises adicionais.</p>
           <div className="report-actions"><button className="button button-secondary" onClick={exportCsv} disabled={!selectedAnimals.length}><FileDown size={18} /> Baixar CSV</button></div>
+        </article>
+
+        <article className="report-card">
+          <div className="report-icon"><ScanLine /></div>
+          <span className="eyebrow">Curral e IA</span>
+          <h2>Folhas de campo</h2>
+          <p>Folhas com os brincos impressos para a equipe marcar à caneta. Na volta, a foto da folha é lida pela IA dentro de cada manejo.</p>
+          <div className="report-actions">
+            <button className="button button-secondary" onClick={() => void generate('folha-diag', async () => (await exporters()).exportFieldSheetPdf('diagnostico', selectedAnimals.filter((a) => a.sex === 'femea')))} disabled={Boolean(generating)}><Printer size={16} /> Diagnóstico</button>
+            <button className="button button-secondary" onClick={() => void generate('folha-peso', async () => (await exporters()).exportFieldSheetPdf('pesagem', selectedAnimals))} disabled={Boolean(generating)}><Printer size={16} /> Pesagem</button>
+            <button className="button button-secondary" onClick={() => void generate('folha-san', async () => (await exporters()).exportFieldSheetPdf('sanitario', selectedAnimals))} disabled={Boolean(generating)}><Printer size={16} /> Sanitário</button>
+          </div>
         </article>
 
         <article className="report-card">

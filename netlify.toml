@@ -2,6 +2,19 @@
   command = "npm run build"
   publish = "dist"
 
+# Funções no servidor do Netlify: leitura do brinco, leitura de folha e gestão
+# de contas. As chaves ficam nas variáveis de ambiente do site, nunca no app.
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# As chamadas do app para /api/... vão para as funções.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# Qualquer outra rota é do app (React Router).
 [[redirects]]
   from = "/*"
   to = "/index.html"

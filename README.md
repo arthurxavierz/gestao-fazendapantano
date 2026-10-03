@@ -1,10 +1,8 @@
-# 🐂 Fazenda Pântano
+# Fazenda Pântano
 
-**Gestão pecuária que substitui a planilha.** Aplicativo web instalável no celular para rebanho de corte e cria: reprodução com protocolos de IATF, partos com genealogia, vacinas com calendário de reforço, pesagens com ganho diário, compras de lotes, leitura do brinco por IA e rastreabilidade de quem registrou cada informação.
+**Gestão agropecuária que substitui a planilha.** Aplicativo web instalável no celular para rebanho de corte e cria: reprodução com protocolos de IATF, partos com genealogia, vacinas com calendário de reforço, pesagens com ganho diário, compras de lotes, leitura do brinco e de folhas de campo por IA e rastreabilidade de quem registrou cada informação.
 
-[**Ver demonstração**](#)
-
-<!-- Substitua o link acima pela URL publicada e adicione uma captura de tela aqui. -->
+Publicado em **fazendapantano.achillesmedia.com.br**. Desenvolvido pela Achilles.
 
 ---
 
@@ -41,7 +39,9 @@ Duas restrições guiaram o projeto: **o operador usa o celular no meio do pasto
 
 **Pesagem.** Modo curral: digita o brinco, Enter, o peso, Enter, e o próximo já fica pronto. Mostra o ganho diário na hora, comparado com a pesagem anterior. Peso médio e GMD por lote, @ estimada.
 
-**Leitura do brinco por IA.** A foto é comprimida no celular, enviada a uma Edge Function e analisada pelo Gemini, que devolve número do brinco, pelagem e raça provável, cada um com nível de confiança.
+**Leitura do brinco por IA.** A foto é comprimida no celular, enviada a uma função de servidor e analisada pelo Gemini, que devolve número do brinco, pelagem e raça provável, cada um com nível de confiança.
+
+**Leitura de folhas de campo por IA.** O sistema imprime as folhas de diagnóstico, pesagem e aplicação sanitária com os brincos já escritos. A equipe marca à caneta no curral; na volta, o administrador fotografa a folha e a IA lê linha por linha: prenhe ou vazia, peso, feito ou não. Uma tela de conferência destaca as linhas duvidosas antes de qualquer registro, e o resultado alimenta o diagnóstico em lote (com a regra de descarte), a pesagem e a vacinação.
 
 **Importação de planilha.** Leitor próprio de `.xlsx` e CSV, com detecção automática de qual coluna é o quê.
 
@@ -67,7 +67,9 @@ Duas restrições guiaram o projeto: **o operador usa o celular no meio do pasto
 
 **Migração sem susto.** O `schema.sql` é idempotente e pode ser executado sobre o banco em produção. Enquanto ele não roda, o app continua funcionando: grava só as colunas antigas, esconde o que depende das tabelas novas e mostra um aviso para o administrador.
 
-**A chave da IA nunca chega ao navegador.** A chamada ao Gemini vive numa Edge Function em Deno; a chave fica nos secrets do Supabase.
+**A chave da IA nunca chega ao navegador.** A chamada ao Gemini vive em funções do Netlify (`netlify/functions`); a chave fica nas variáveis de ambiente do site. Com banco ligado, as funções só atendem quem tem sessão válida no Supabase.
+
+**Pronto para o banco, funcionando sem ele.** Sem as chaves do Supabase, tudo roda em modo demonstração, inclusive as leituras por IA e a gestão de contas. Ligar o banco é cadastrar variáveis e rodar o `schema.sql`, sem mudar código.
 
 **Leitor de planilha escrito à mão** e **gráficos em SVG puro.** Sem dependências pesadas para o que cabe em poucas dezenas de linhas. As bibliotecas de PDF e Word só são baixadas quando alguém gera um documento.
 
@@ -75,7 +77,7 @@ Duas restrições guiaram o projeto: **o operador usa o celular no meio do pasto
 
 ## Stack
 
-`React 18` · `TypeScript` · `Vite` · `Supabase` (Postgres, Auth, Storage, Edge Functions) · `Google Gemini` · `jsPDF` · `docx` · `PWA` · `Netlify`
+`React 18` · `TypeScript` · `Vite` · `Supabase` (Postgres, Auth, Storage) · `Netlify Functions` · `Google Gemini` · `jsPDF` · `docx` · `PWA`
 
 ## Rodando localmente
 
@@ -86,16 +88,32 @@ npm run dev
 
 Sem arquivo `.env`, o sistema abre em **modo de demonstração**. O botão "Reiniciar demo", no rodapé do menu, volta o rebanho de exemplo ao estado inicial.
 
-## Configuração
+## Configuração no Netlify
 
-Copie `.env.example` para `.env` e preencha:
+Todas as variáveis ficam em **Site configuration > Environment variables**. O arquivo `.env.example` descreve cada uma.
 
-```env
-VITE_SUPABASE_URL=https://SEU-PROJETO.supabase.co
-VITE_SUPABASE_ANON_KEY=sua_chave_anon
-```
+### Modo de espera (hoje, sem banco)
 
-Depois, no painel do Supabase, execute `supabase/schema.sql` no SQL Editor.
+Nenhuma variável do Supabase. O sistema abre com a identidade da Fazenda Pântano, em modo demonstração, com o rebanho de exemplo.
+
+| Variável | Para quê |
+|---|---|
+| `GEMINI_API_KEY` | Leitura real do brinco e das folhas. Sem ela, a demonstração mostra uma leitura simulada, com aviso. |
+
+### Ligando o banco
+
+1. No Supabase, execute `supabase/schema.sql` no SQL Editor (seguro sobre um banco em uso, veja abaixo).
+2. Crie o primeiro usuário em Authentication e promova a administrador com o comando no fim do `schema.sql`.
+3. No Netlify, cadastre e publique de novo:
+
+| Variável | Valor |
+|---|---|
+| `VITE_SUPABASE_URL` | URL do projeto Supabase |
+| `VITE_SUPABASE_ANON_KEY` | chave pública (anon) |
+| `SUPABASE_SERVICE_ROLE_KEY` | chave service_role, para a gestão de contas pela tela |
+| `GEMINI_API_KEY` | mesma de antes |
+
+As funções de IA e de contas passam a exigir login automaticamente.
 
 ### Atualizando um banco que já está em uso
 
@@ -108,13 +126,9 @@ Execute o `supabase/schema.sql` completo de novo. Ele só cria o que falta:
 
 Nenhum dado é apagado. Animais com a origem em texto ("Nascido na fazenda", "Comprado") são convertidos automaticamente para a origem estruturada.
 
-### Edge Functions (opcionais)
+### Marca
 
-```bash
-npx supabase functions deploy analisar-foto        # leitura do brinco por IA
-npx supabase functions deploy gerenciar-usuarios   # gestão de contas pela tela
-npx supabase secrets set GEMINI_API_KEY=sua_chave
-```
+`brand.config.json` define a identidade deste repositório (`"brand": "fazenda"`). As variáveis `VITE_BRAND` e `VITE_FARM_NAME` sobrepõem o arquivo, se necessário.
 
 ## Estrutura
 
@@ -124,11 +138,13 @@ src/
   components/   Interface reutilizável: gráficos, seletor de animais, formulários de manejo
   pages/        Telas: painel, agenda, reprodução, manejo, compras, rebanho, documentos
   hooks/        Visão calculada do rebanho (categoria e fase reprodutiva de cada animal)
-  services/     Supabase, modo demonstração, repositório genérico, IA
+  services/     Supabase, modo demonstração, repositório genérico, IA (brinco e folhas)
   utils/        Exportadores (PDF/Word), imagens, formatação
+netlify/
+  functions/    Funções de servidor: leitura do brinco, leitura de folha, gestão de contas
 supabase/
   schema.sql    Tabelas, triggers de autoria, políticas RLS, bucket de fotos e migração v2
-  functions/    Edge Functions: leitura do brinco e gestão de contas
+  functions/    Versões antigas das funções (Edge Functions), mantidas como alternativa
 ```
 
 ## Roadmap

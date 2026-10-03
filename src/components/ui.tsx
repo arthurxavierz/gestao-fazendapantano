@@ -1,6 +1,9 @@
 import type { LucideIcon } from 'lucide-react'
 import { X } from 'lucide-react'
-import { FormEvent, ReactNode, useEffect } from 'react'
+import { FormEvent, ReactNode, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
+
+const modalStack: object[] = []
 
 /** Janela sobreposta. Fecha no Esc e ao clicar fora. */
 export function Modal({
@@ -20,15 +23,25 @@ export function Modal({
   onSubmit?: (event: FormEvent) => void
   size?: 'md' | 'lg' | 'xl'
 }) {
+  // Referência estável: o efeito roda uma vez por janela aberta, e a ordem da
+  // pilha não muda quando a janela de baixo renderiza de novo.
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    // Janelas podem abrir uma sobre a outra: o Esc fecha só a de cima.
+    const token = {}
+    modalStack.push(token)
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && modalStack[modalStack.length - 1] === token) closeRef.current()
+    }
     window.addEventListener('keydown', onKey)
     document.body.classList.add('no-scroll')
     return () => {
       window.removeEventListener('keydown', onKey)
-      document.body.classList.remove('no-scroll')
+      modalStack.splice(modalStack.indexOf(token), 1)
+      if (!modalStack.length) document.body.classList.remove('no-scroll')
     }
-  }, [onClose])
+  }, [])
 
   const content = (
     <>
@@ -41,14 +54,17 @@ export function Modal({
     </>
   )
 
-  return (
+  // Portal no body: uma janela aberta de dentro de outra não fica presa à
+  // animação (transform) da janela de baixo.
+  return createPortal(
     <div className="modal-backdrop" onMouseDown={onClose}>
       {onSubmit ? (
         <form className={`modal modal-${size}`} onSubmit={onSubmit} onMouseDown={(e) => e.stopPropagation()}>{content}</form>
       ) : (
         <div className={`modal modal-${size}`} onMouseDown={(e) => e.stopPropagation()}>{content}</div>
       )}
-    </div>
+    </div>,
+    document.body
   )
 }
 

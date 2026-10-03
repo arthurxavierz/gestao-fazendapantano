@@ -382,14 +382,21 @@ export async function saveSettings(settings: FarmSettings): Promise<void> {
  * própria conta: a política de segurança do banco bloqueia o restante.
  */
 export async function listProfiles(): Promise<Profile[]> {
-  if (!isSupabaseConfigured || !supabase) return demoProfiles
+  if (!isSupabaseConfigured || !supabase) return readLocal<Profile[]>(localKey('profiles'), demoProfiles)
   const { data, error } = await supabase.from('profiles').select('*').order('full_name')
   if (error) throw error
   return (data ?? []) as Profile[]
 }
 
 export async function updateProfileRole(id: string, role: UserRole): Promise<void> {
-  if (!isSupabaseConfigured || !supabase) return
+  if (!isSupabaseConfigured || !supabase) {
+    const profiles = readLocal<Profile[]>(localKey('profiles'), demoProfiles)
+    if (role !== 'administrador' && profiles.find((item) => item.id === id)?.role === 'administrador' && profiles.filter((item) => item.role === 'administrador').length <= 1) {
+      throw new Error('É preciso manter pelo menos um administrador no sistema.')
+    }
+    writeLocal(localKey('profiles'), profiles.map((item) => (item.id === id ? { ...item, role } : item)))
+    return
+  }
   const { error } = await supabase.from('profiles').update({ role }).eq('id', id)
   if (error) throw error
 }

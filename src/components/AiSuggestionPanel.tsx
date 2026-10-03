@@ -26,9 +26,11 @@ interface Props {
   rows: SuggestionRow[]
   onApplyAll: () => void
   onDismiss: () => void
+  /** Leitura de exemplo do modo demonstração, sem IA real. */
+  simulated?: boolean
 }
 
-export function AiSuggestionPanel({ analysis, rows, onApplyAll, onDismiss }: Props) {
+export function AiSuggestionPanel({ analysis, rows, onApplyAll, onDismiss, simulated = false }: Props) {
   const usable = rows.filter((row) => row.value && row.confidence !== 'ilegivel')
   const unreadable = analysis.numero_confianca === 'ilegivel'
   const lowConfidence = analysis.numero_confianca === 'baixa'
@@ -43,6 +45,8 @@ export function AiSuggestionPanel({ analysis, rows, onApplyAll, onDismiss }: Pro
         </div>
         <button type="button" className="icon-button" onClick={onDismiss} aria-label="Fechar sugestões">×</button>
       </div>
+
+      {simulated && <SimulatedNotice />}
 
       {unreadable && (
         <div className="ai-warning">
@@ -92,6 +96,16 @@ export function AiSuggestionPanel({ analysis, rows, onApplyAll, onDismiss }: Pro
           <button type="button" className="button button-ghost" onClick={onDismiss}>Descartar</button>
         </div>
       )}
+    </div>
+  )
+}
+
+/** Aviso de que a leitura é um exemplo, para a demonstração nunca enganar ninguém. */
+export function SimulatedNotice() {
+  return (
+    <div className="ai-simulated">
+      <Sparkles size={16} />
+      <span><strong>Demonstração:</strong> leitura simulada. Com a chave do Gemini ativada no servidor, a foto é lida de verdade pela IA.</span>
     </div>
   )
 }

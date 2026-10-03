@@ -58,6 +58,7 @@ export function AnimalForm() {
 
   const [analysis, setAnalysis] = useState<AiPhotoAnalysis | null>(null)
   const [analysisModel, setAnalysisModel] = useState('')
+  const [analysisSimulated, setAnalysisSimulated] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
   // Campos atualmente preenchidos pela IA e ainda não revisados manualmente.
@@ -101,9 +102,10 @@ export function AnimalForm() {
     setAnalyzing(true)
     setAiError(null)
     try {
-      const result = await analyzeAnimalPhoto(form.photo_url)
+      const result = await analyzeAnimalPhoto(form.photo_url, animals.filter((item) => item.id !== id).map((item) => item.number))
       setAnalysis(result.analysis)
       setAnalysisModel(result.modelo)
+      setAnalysisSimulated(result.simulated)
     } catch (error) {
       setAiError(error instanceof Error ? error.message : 'Não foi possível analisar a foto.')
     } finally {
@@ -211,6 +213,7 @@ export function AnimalForm() {
 
           {analysis && (
             <AiSuggestionPanel
+              simulated={analysisSimulated}
               analysis={analysis}
               onApplyAll={applyAll}
               onDismiss={() => setAnalysis(null)}

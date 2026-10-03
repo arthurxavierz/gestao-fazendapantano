@@ -6,6 +6,7 @@ import { EmptyState } from '../components/EmptyState'
 import { Loading } from '../components/Loading'
 import { listProfiles, updateProfileRole } from '../services/repository'
 import { changeUserEmail, createUser, deleteUser, isUserAdminAvailable, resetUserPassword } from '../services/userAdmin'
+import { isSupabaseConfigured } from '../services/supabase'
 import type { Profile, UserRole } from '../types'
 import { formatDate, formatDateTime, healthKindLabel, methodLabel, occurrenceLabel, resultLabel } from '../utils/format'
 
@@ -354,8 +355,8 @@ A pessoa perde o acesso imediatamente. Os registros que ela já fez continuam no
             </div>
           )}
 
-          {!isUserAdminAvailable && (
-            <p className="panel-note">Criar e excluir contas exige o Supabase configurado. Em modo de demonstração só é possível visualizar.</p>
+          {!isSupabaseConfigured && (
+            <p className="panel-note">Modo demonstração: as contas de exemplo ficam só neste navegador. Com o banco ligado, as mesmas ações criam contas de verdade.</p>
           )}
 
           {loadingProfiles ? <Loading /> : profiles.length ? (

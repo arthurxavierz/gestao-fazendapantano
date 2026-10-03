@@ -221,3 +221,15 @@ export interface DashboardSummary {
   morto: number
   vendido: number
 }
+
+/** Folhas de campo impressas pelo sistema e lidas depois por IA. */
+export type SheetKind = 'diagnostico' | 'pesagem' | 'sanitario'
+
+export interface SheetReadRow {
+  numero: string
+  numero_confianca: AiConfidence
+  marcado: boolean
+  marcado_confianca: AiConfidence
+  valor: string
+  observacao: string
+}

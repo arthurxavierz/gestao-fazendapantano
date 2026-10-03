@@ -399,3 +399,91 @@ export function exportReproReportPdf(rows: ReproReportRow[], summary: string) {
 
   doc.save('relatorio-reprodutivo.pdf')
 }
+
+// ============================================================
+// Folhas de campo: impressas, preenchidas à caneta, lidas pela IA
+// ============================================================
+// O brinco de cada animal já vai IMPRESSO, grande, em cada linha. No curral a
+// equipe só marca um X e escreve valores curtos. Na volta, a foto da folha é
+// lida pela IA e conferida por uma pessoa antes de virar registro.
+
+export type FieldSheetKind = 'diagnostico' | 'pesagem' | 'sanitario'
+
+interface FieldSheetOptions {
+  title?: string
+  /** Linha extra no cabeçalho (ex.: produto da vacina, protocolo). */
+  detail?: string
+  /** Peso anterior por id de animal, impresso na folha de pesagem. */
+  previous?: Record<string, string>
+}
+
+const fieldSheetConfig: Record<FieldSheetKind, { title: string; instructions: string; head: string[]; widths: number[] }> = {
+  diagnostico: {
+    title: 'Folha de diagnóstico de gestação',
+    instructions: 'Marque um X em PRENHE ou em VAZIA para cada matriz. Use a observação só se precisar.',
+    head: ['Brinco', 'Lote', 'Prenhe', 'Vazia', 'Observação'],
+    widths: [38, 52, 30, 30, 118]
+  },
+  pesagem: {
+    title: 'Folha de pesagem',
+    instructions: 'Escreva o peso em kg, com números bem legíveis. Marque X em PRESENTE para cada animal que passou na balança.',
+    head: ['Brinco', 'Lote', 'Peso anterior', 'Presente', 'Peso (kg)', 'Observação'],
+    widths: [38, 46, 34, 26, 44, 80]
+  },
+  sanitario: {
+    title: 'Folha de aplicação sanitária',
+    instructions: 'Marque um X em FEITO para cada animal que recebeu a aplicação. Anote a dose se for diferente da padrão.',
+    head: ['Brinco', 'Lote', 'Feito', 'Dose', 'Observação'],
+    widths: [38, 52, 30, 40, 108]
+  }
+}
+
+export function exportFieldSheetPdf(kind: FieldSheetKind, animals: Animal[], options: FieldSheetOptions = {}) {
+  const cfg = fieldSheetConfig[kind]
+  const title = options.title || cfg.title
+  const doc = new jsPDF({ orientation: 'landscape' })
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(18)
+  doc.text(brand, 14, 16)
+  doc.setFontSize(14)
+  doc.text(title, 14, 25)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  doc.text('Data: ____/____/________     Responsável: __________________________________', 14, 33)
+  if (options.detail) doc.text(options.detail, 175, 33)
+  doc.setFontSize(9)
+  doc.setTextColor(90, 100, 115)
+  doc.text(`${cfg.instructions}  Depois, fotografe a folha inteira, de cima e bem iluminada, para a leitura automática.`, 14, 40)
+  doc.setTextColor(0, 0, 0)
+
+  const list = animals.length ? animals : Array.from({ length: 18 }, () => ({ id: '', number: '' } as Animal))
+  const body = list.map((animal) => {
+    if (kind === 'diagnostico') return [animal.number, animal.lot || '', '', '', '']
+    if (kind === 'pesagem') return [animal.number, animal.lot || '', options.previous?.[animal.id] || (animal.weight ? `${animal.weight} kg` : ''), '', '', '']
+    return [animal.number, animal.lot || '', '', '', '']
+  })
+
+  autoTable(doc, {
+    startY: 45,
+    theme: 'grid',
+    margin: { left: 14, right: 14 },
+    head: [cfg.head],
+    body,
+    styles: { fontSize: 10, minCellHeight: 11, valign: 'middle', lineColor: [120, 130, 140], lineWidth: 0.25 },
+    headStyles: { fillColor: green, fontSize: 10, halign: 'center' },
+    columnStyles: Object.fromEntries(cfg.widths.map((width, index) => [index, {
+      cellWidth: width,
+      ...(index === 0 ? { fontStyle: 'bold', fontSize: 15, halign: 'center' } : {}),
+      ...(cfg.head[index] === 'Prenhe' || cfg.head[index] === 'Vazia' || cfg.head[index] === 'Presente' || cfg.head[index] === 'Feito' ? { halign: 'center' } : {})
+    }])),
+    didDrawPage: () => {
+      doc.setFontSize(8)
+      doc.setTextColor(140, 148, 158)
+      doc.text(`${list.length} linhas · página ${doc.getNumberOfPages()}`, 283, 205, { align: 'right' })
+      doc.setTextColor(0, 0, 0)
+    }
+  })
+
+  doc.save(`${safeFileName(title)}.pdf`)
+}

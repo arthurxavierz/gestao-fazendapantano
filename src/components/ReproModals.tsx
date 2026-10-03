@@ -1,4 +1,4 @@
-import { AlertTriangle, Baby, CalendarCheck, Check, HeartCrack, Skull, Dna } from 'lucide-react'
+import { AlertTriangle, Baby, CalendarCheck, Check, HeartCrack, Printer, ScanLine, Skull, Dna } from 'lucide-react'
 import { FormEvent, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAnimalIndex, useAppData } from '../AppContext'
@@ -16,6 +16,7 @@ import { addDays, daysBetween, formatDate, formatShortDate, methodLabel, relativ
 import { AnimalMultiPicker } from './AnimalPicker'
 import { ReproBadge } from './StatusBadge'
 import { Alert, AttemptDots, Field, Modal } from './ui'
+import { SheetImportModal, type SheetRow } from './SheetImportModal'
 
 /** Dias mínimos depois do parto antes de um novo protocolo (puerpério). */
 export const MIN_POSTPARTUM_DAYS = 30
@@ -250,6 +251,28 @@ export function DiagnosisModal({ attemptIds, onClose }: { attemptIds: string[]; 
   const [discard, setDiscard] = useState<Record<string, boolean>>({})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [readingSheet, setReadingSheet] = useState(false)
+  const [sheetNote, setSheetNote] = useState<string | null>(null)
+  const sheetAnimals = list.map((item) => herd.get(item.animal_id)!.animal)
+
+  async function printSheet() {
+    const { exportFieldSheetPdf } = await import('../utils/exporters')
+    exportFieldSheetPdf('diagnostico', sheetAnimals, { detail: `${list.length} matrizes` })
+  }
+
+  /** Linhas lidas na folha viram o resultado de cada matriz; a pessoa ainda confere aqui. */
+  function applySheet(rows: SheetRow[]) {
+    const next = { ...results }
+    let count = 0
+    for (const row of rows) {
+      const attempt = list.find((item) => item.animal_id === row.animal?.id)
+      if (!attempt) continue
+      next[attempt.id] = row.marcado ? 'prenhe' : 'vazia'
+      count += 1
+    }
+    setResults(next)
+    setSheetNote(`${count} resultados preenchidos pela folha. Confira e salve.`)
+  }
 
   const willDiscard = (attempt: BreedingAttempt) => {
     const info = herd.get(attempt.animal_id)
@@ -292,6 +315,12 @@ export function DiagnosisModal({ attemptIds, onClose }: { attemptIds: string[]; 
         <button className="button button-primary" disabled={saving || !decided}><CalendarCheck size={18} /> {saving ? 'Salvando' : 'Salvar diagnóstico'}</button>
       </>}
     >
+      <div className="field-sheet-bar">
+        <span><ScanLine size={16} /> Folha de campo</span>
+        <button type="button" className="button button-secondary button-sm" onClick={() => void printSheet()}><Printer size={15} /> Imprimir</button>
+        <button type="button" className="button button-primary button-sm" onClick={() => setReadingSheet(true)}><ScanLine size={15} /> Ler folha preenchida</button>
+      </div>
+      {sheetNote && <Alert tone="success">{sheetNote}</Alert>}
       <div className="form-grid two">
         <Field label="Data do diagnóstico" required><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
         <div className="field">
@@ -332,6 +361,9 @@ export function DiagnosisModal({ attemptIds, onClose }: { attemptIds: string[]; 
         })}
       </div>
       {error && <Alert>{error}</Alert>}
+      {readingSheet && (
+        <SheetImportModal kind="diagnostico" animals={sheetAnimals} onApply={applySheet} onPrint={() => void printSheet()} onClose={() => setReadingSheet(false)} />
+      )}
     </Modal>
   )
 }

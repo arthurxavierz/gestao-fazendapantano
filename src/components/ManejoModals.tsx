@@ -1,4 +1,4 @@
-import { Check, Scale, Syringe, Trash2 } from 'lucide-react'
+import { Check, Printer, Scale, ScanLine, Syringe, Trash2 } from 'lucide-react'
 import { FormEvent, KeyboardEvent, useMemo, useRef, useState } from 'react'
 import { useAppData } from '../AppContext'
 import { byNumber, formatGain, isActive, weighingsOf } from '../domain/herd'
@@ -7,6 +7,7 @@ import type { HealthKind } from '../types'
 import { daysBetween, formatArroba, formatShortDate, healthKindLabel, todayISO } from '../utils/format'
 import { AnimalMultiPicker } from './AnimalPicker'
 import { Alert, Field, Modal } from './ui'
+import { SheetImportModal, type SheetRow } from './SheetImportModal'
 
 // ============================================================
 // Aplicação sanitária (vacina, vermífugo, medicamento...)
@@ -28,6 +29,21 @@ export function HealthModal({ onClose, preselected = [], product: initialProduct
 
   const candidates = useMemo(() => animals.filter(isActive), [animals])
   const preset = healthPresets.find((item) => item.product === product)
+  const [readingSheet, setReadingSheet] = useState(false)
+  const [sheetNote, setSheetNote] = useState<string | null>(null)
+  const sheetAnimals = useMemo(() => candidates.filter((item) => selected.includes(item.id)).sort(byNumber), [candidates, selected])
+
+  async function printSheet() {
+    const { exportFieldSheetPdf } = await import('../utils/exporters')
+    exportFieldSheetPdf('sanitario', sheetAnimals, { detail: product ? `Produto: ${product}${dose ? ` · dose ${dose}` : ''}` : undefined })
+  }
+
+  /** Só quem foi marcado como "feito" na folha recebe o registro. */
+  function applySheet(rows: SheetRow[]) {
+    const done = rows.filter((row) => row.animal && row.marcado).map((row) => row.animal!.id)
+    setSelected(done)
+    setSheetNote(`${done.length} de ${rows.length} animais marcados como feitos na folha.`)
+  }
 
   function pickPreset(name: string) {
     const found = healthPresets.find((item) => item.product === name)
@@ -89,6 +105,12 @@ export function HealthModal({ onClose, preselected = [], product: initialProduct
     >
       <div className="modal-split">
         <div>
+          <div className="field-sheet-bar">
+            <span><ScanLine size={16} /> Folha de campo {sheetAnimals.length ? `· ${sheetAnimals.length} animais` : '· selecione os animais'}</span>
+            <button type="button" className="button button-secondary button-sm" onClick={() => void printSheet()} disabled={!sheetAnimals.length}><Printer size={15} /> Imprimir</button>
+            <button type="button" className="button button-primary button-sm" onClick={() => setReadingSheet(true)} disabled={!sheetAnimals.length}><ScanLine size={15} /> Ler folha</button>
+          </div>
+          {sheetNote && <Alert tone="success">{sheetNote}</Alert>}
           <span className="field-label">Atalhos</span>
           <div className="chip-row">
             {healthPresets.map((item) => (
@@ -118,6 +140,9 @@ export function HealthModal({ onClose, preselected = [], product: initialProduct
         </div>
       </div>
       {error && <Alert>{error}</Alert>}
+      {readingSheet && (
+        <SheetImportModal kind="sanitario" animals={sheetAnimals} onApply={applySheet} onPrint={() => void printSheet()} onClose={() => setReadingSheet(false)} />
+      )}
     </Modal>
   )
 }
@@ -144,6 +169,7 @@ export function WeighingModal({ onClose, preselected = [] }: { onClose: () => vo
   const [error, setError] = useState<string | null>(null)
   const numberRef = useRef<HTMLInputElement>(null)
   const weightRef = useRef<HTMLInputElement>(null)
+  const [readingSheet, setReadingSheet] = useState(false)
 
   const lots = useMemo(() => [...new Set(active.map((item) => item.lot).filter(Boolean) as string[])].sort(), [active])
   const byId = useMemo(() => new Map(active.map((item) => [item.id, item])), [active])
@@ -196,6 +222,30 @@ export function WeighingModal({ onClose, preselected = [] }: { onClose: () => vo
     setRows((current) => [...current, ...ids.filter((id) => !current.some((row) => row.animalId === id)).map((animalId) => ({ animalId, weight: '' }))])
   }
 
+  const sheetAnimals = rows.map((row) => byId.get(row.animalId)).filter(Boolean) as typeof active
+
+  /** Peso provável hoje (última pesagem mais um ganho comum), só para a leitura simulada. */
+  const expectedWeights = Object.fromEntries(sheetAnimals.map((animal) => {
+    const prev = previous(animal.id)
+    const days = prev ? daysBetween(prev.weighed_at, date) : 0
+    return [animal.id, prev ? String(Math.round(Number(prev.weight) + days * 1.2)) : String(animal.weight ?? '')]
+  }))
+
+  async function printSheet() {
+    const { exportFieldSheetPdf } = await import('../utils/exporters')
+    const previousWeights = Object.fromEntries(sheetAnimals.map((animal) => {
+      const prev = previous(animal.id)
+      return [animal.id, prev ? `${Number(prev.weight)} kg` : '']
+    }))
+    exportFieldSheetPdf('pesagem', sheetAnimals, { detail: lot ? `Lote: ${lot}` : undefined, previous: previousWeights })
+  }
+
+  function applySheet(lines: SheetRow[]) {
+    const read = new Map(lines.filter((line) => line.animal && line.marcado && Number(line.valor) > 0).map((line) => [line.animal!.id, line.valor]))
+    setRows((current) => current.map((row) => (read.has(row.animalId) ? { ...row, weight: read.get(row.animalId)! } : row)))
+    setMessage(`${read.size} pesos lidos da folha. Confira na lista antes de salvar.`)
+  }
+
   const filled = rows.filter((row) => Number(row.weight) > 0)
   const average = filled.length ? filled.reduce((sum, row) => sum + Number(row.weight), 0) / filled.length : null
 
@@ -238,6 +288,12 @@ export function WeighingModal({ onClose, preselected = [] }: { onClose: () => vo
         <Field label="Observação"><input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ex.: balança do curral 2" /></Field>
       </div>
 
+      <div className="field-sheet-bar">
+        <span><ScanLine size={16} /> Folha de campo {sheetAnimals.length ? `· ${sheetAnimals.length} animais` : '· carregue um lote primeiro'}</span>
+        <button type="button" className="button button-secondary button-sm" onClick={() => void printSheet()} disabled={!sheetAnimals.length}><Printer size={15} /> Imprimir</button>
+        <button type="button" className="button button-primary button-sm" onClick={() => setReadingSheet(true)} disabled={!sheetAnimals.length}><ScanLine size={15} /> Ler folha preenchida</button>
+      </div>
+
       <div className="scale-entry">
         <Scale size={22} />
         <input ref={numberRef} value={number} onChange={(e) => { setNumber(e.target.value); setMessage(null) }} onKeyDown={onNumberKey} placeholder="Brinco" inputMode="numeric" autoFocus aria-label="Brinco" />
@@ -274,6 +330,9 @@ export function WeighingModal({ onClose, preselected = [] }: { onClose: () => vo
         </div>
       )}
       {error && <Alert>{error}</Alert>}
+      {readingSheet && (
+        <SheetImportModal kind="pesagem" animals={sheetAnimals} hints={expectedWeights} onApply={applySheet} onPrint={() => void printSheet()} onClose={() => setReadingSheet(false)} />
+      )}
     </Modal>
   )
 }

@@ -1,14 +1,27 @@
-import { isSupabaseConfigured, supabase } from './supabase'
+import type { Profile } from '../types'
+import { demoProfiles } from './demoData'
+import { callFunction } from './functions'
+import { localKey, readLocal, writeLocal } from './store'
+import { isSupabaseConfigured } from './supabase'
 
+/**
+ * Gestão de contas (criar, trocar senha e e-mail, excluir).
+ *
+ * Com banco: a função do Netlify netlify/functions/gerenciar-usuarios, que usa a
+ * service_role guardada no servidor. Se ela não estiver configurada, tenta a
+ * Edge Function antiga do Supabase.
+ *
+ * Sem banco (demonstração): as contas de exemplo vivem no navegador, para a
+ * tela de administração poder ser apresentada por completo.
+ */
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+const legacyUrl = supabaseUrl ? `${supabaseUrl.replace(/\/+$/, '')}/functions/v1/gerenciar-usuarios` : undefined
 
-const functionUrl = supabaseUrl
-  ? `${supabaseUrl.replace(/\/+$/, '')}/functions/v1/gerenciar-usuarios`
-  : undefined
+export const isUserAdminAvailable = true
 
-/** Criar e excluir contas exige servidor. Em modo demonstração o recurso fica indisponível. */
-export const isUserAdminAvailable = Boolean(functionUrl && isSupabaseConfigured)
+const PROFILES_KEY = localKey('profiles')
+export const readDemoProfiles = () => readLocal<Profile[]>(PROFILES_KEY, demoProfiles)
+export const writeDemoProfiles = (profiles: Profile[]) => writeLocal(PROFILES_KEY, profiles)
 
 type Action = 'criar' | 'redefinir_senha' | 'alterar_email' | 'excluir'
 
@@ -21,27 +34,45 @@ interface Payload {
 }
 
 async function call(payload: Payload) {
-  if (!functionUrl || !supabase) {
-    throw new Error('A gestão de contas exige o Supabase configurado.')
+  if (!isSupabaseConfigured) return demoCall(payload)
+  const result = await callFunction<{ ok: boolean }>('gerenciar-usuarios', payload)
+  if (result.status === 'ok') return result.data
+  if (legacyUrl) {
+    const legacy = await callFunction<{ ok: boolean }>('gerenciar-usuarios', payload, legacyUrl)
+    if (legacy.status === 'ok') return legacy.data
   }
+  throw new Error('A gestão de contas ainda não foi ativada neste site. Cadastre SUPABASE_SERVICE_ROLE_KEY no Netlify.')
+}
 
-  const { data } = await supabase.auth.getSession()
-  const token = data.session?.access_token
-  if (!token) throw new Error('Sua sessão expirou. Entre novamente.')
-
-  const response = await fetch(functionUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...(anonKey ? { apikey: anonKey } : {})
-    },
-    body: JSON.stringify(payload)
-  })
-
-  const result = await response.json().catch(() => null)
-  if (!response.ok) throw new Error(result?.error || 'Não foi possível concluir a operação.')
-  return result
+/** Mesmas regras do servidor, aplicadas às contas de exemplo. */
+function demoCall(payload: Payload) {
+  const profiles = readDemoProfiles()
+  const email = (payload.email ?? '').trim().toLowerCase()
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  switch (payload.action) {
+    case 'criar': {
+      if (!emailValid) throw new Error('Informe um e-mail válido.')
+      if ((payload.password ?? '').length < 8) throw new Error('A senha precisa ter ao menos 8 caracteres.')
+      if (profiles.some((item) => item.email === email)) throw new Error('Já existe uma conta com esse e-mail.')
+      writeDemoProfiles([...profiles, { id: crypto.randomUUID(), full_name: payload.full_name || email, email, role: 'operador', created_at: new Date().toISOString() }])
+      return { ok: true }
+    }
+    case 'redefinir_senha':
+      if ((payload.password ?? '').length < 8) throw new Error('A senha precisa ter ao menos 8 caracteres.')
+      return { ok: true }
+    case 'alterar_email':
+      if (!emailValid) throw new Error('Informe um e-mail válido.')
+      writeDemoProfiles(profiles.map((item) => (item.id === payload.user_id ? { ...item, email } : item)))
+      return { ok: true }
+    case 'excluir': {
+      const target = profiles.find((item) => item.id === payload.user_id)
+      if (target?.role === 'administrador' && profiles.filter((item) => item.role === 'administrador').length <= 1) {
+        throw new Error('É preciso manter pelo menos um administrador.')
+      }
+      writeDemoProfiles(profiles.filter((item) => item.id !== payload.user_id))
+      return { ok: true }
+    }
+  }
 }
 
 export const createUser = (email: string, password: string, fullName: string) =>
