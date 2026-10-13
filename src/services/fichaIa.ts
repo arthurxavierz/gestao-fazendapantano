@@ -42,11 +42,11 @@ function normalizar(row: Partial<LeituraFicha>): LeituraFicha {
   return {
     brinco: String(row.brinco ?? '').trim(),
     presente: typeof row.presente === 'boolean' ? row.presente : null,
-    sexo: row.sexo === 'M' || row.sexo === 'F' ? row.sexo : '',
-    faixa: String(row.faixa ?? '').trim(),
+    sexo: String(row.sexo ?? '').trim().toUpperCase() === 'M' ? 'M' : String(row.sexo ?? '').trim().toUpperCase() === 'F' ? 'F' : '',
+    faixa: /^[1-4]$/.test(String(row.faixa ?? '').trim()) ? String(row.faixa).trim() : '',
     peso: String(row.peso ?? '').trim(),
-    diagnostico: row.diagnostico === 'prenha' || row.diagnostico === 'vazia' ? row.diagnostico : '',
-    saida: row.saida === 'morte' || row.saida === 'venda' || row.saida === 'descarte' ? row.saida : '',
+    diagnostico: (['prenha', 'vazia'] as const).find((v) => String(row.diagnostico ?? '').toLowerCase().startsWith(v.slice(0, 4))) ?? '',
+    saida: (['morte', 'venda', 'descarte'] as const).find((v) => String(row.saida ?? '').toLowerCase().startsWith(v.slice(0, 4))) ?? '',
     observacao: String(row.observacao ?? '').trim(),
     confianca: levels.includes(row.confianca as AiConfidence) ? (row.confianca as AiConfidence) : 'media'
   }

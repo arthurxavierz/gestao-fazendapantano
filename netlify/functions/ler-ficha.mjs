@@ -56,11 +56,12 @@ const schema = {
         properties: {
           brinco: { type: 'STRING' },
           presente: { type: 'BOOLEAN', nullable: true },
-          sexo: { type: 'STRING', enum: ['M', 'F', ''] },
-          faixa: { type: 'STRING', enum: ['1', '2', '3', '4', ''] },
+          // Sem enum: o Gemini não aceita opção vazia. O app normaliza os valores.
+          sexo: { type: 'STRING' },
+          faixa: { type: 'STRING' },
           peso: { type: 'STRING' },
-          diagnostico: { type: 'STRING', enum: ['prenha', 'vazia', ''] },
-          saida: { type: 'STRING', enum: ['morte', 'venda', 'descarte', ''] },
+          diagnostico: { type: 'STRING' },
+          saida: { type: 'STRING' },
           observacao: { type: 'STRING' },
           confianca: { type: 'STRING', enum: levels }
         },

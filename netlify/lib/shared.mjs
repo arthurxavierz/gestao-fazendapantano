@@ -37,7 +37,7 @@ export async function authorize(request) {
     if (!response.ok) return { ok: false, response: json({ error: 'Sessão inválida ou expirada. Entre novamente.' }, 401) }
     return { ok: true, user: await response.json() }
   } catch {
-    return { ok: false, response: json({ error: 'Não foi possível validar a sessão agora.' }, 502) }
+    return { ok: false, response: json({ error: 'Não foi possível validar a sessão agora.' }, 500) }
   }
 }
 
@@ -71,7 +71,7 @@ export async function askGemini({ imageBase64, mimeType, prompt, schema }) {
       })
     })
   } catch {
-    return { error: json({ error: 'Não foi possível falar com o serviço de análise. Verifique a internet.' }, 502) }
+    return { error: json({ error: 'Não foi possível falar com o serviço de análise. Verifique a internet.' }, 500) }
   }
 
   if (response.status === 429) {
@@ -82,7 +82,7 @@ export async function askGemini({ imageBase64, mimeType, prompt, schema }) {
     console.error('Erro do Gemini:', response.status, raw)
     let reason = ''
     try { reason = String(JSON.parse(raw)?.error?.message ?? '') } catch { reason = '' }
-    return { error: json({ error: 'O serviço de análise recusou a solicitação.', detail: reason.slice(0, 300) || `HTTP ${response.status}` }, 502) }
+    return { error: json({ error: 'O serviço de análise recusou a solicitação.', detail: reason.slice(0, 300) || `HTTP ${response.status}` }, 500) }
   }
 
   const payload = await response.json()
@@ -90,12 +90,12 @@ export async function askGemini({ imageBase64, mimeType, prompt, schema }) {
     return { error: json({ error: 'A imagem foi bloqueada pelo filtro de conteúdo do serviço.' }, 422) }
   }
   const text = payload?.candidates?.[0]?.content?.parts?.[0]?.text
-  if (!text) return { error: json({ error: 'O serviço não devolveu uma leitura para esta imagem.' }, 502) }
+  if (!text) return { error: json({ error: 'O serviço não devolveu uma leitura para esta imagem.' }, 500) }
   try {
     return { data: JSON.parse(text) }
   } catch {
     console.error('Resposta não era JSON válido:', text)
-    return { error: json({ error: 'A resposta do serviço veio em formato inesperado.' }, 502) }
+    return { error: json({ error: 'A resposta do serviço veio em formato inesperado.' }, 500) }
   }
 }
 
