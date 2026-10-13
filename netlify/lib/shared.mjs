@@ -82,7 +82,20 @@ export async function askGemini({ imageBase64, mimeType, prompt, schema }) {
   }
 
   if (response.status === 429 || response.status === 503) {
-    return { error: json({ error: 'O serviço de IA está sobrecarregado agora. Tente de novo em alguns instantes.' }, 429) }
+    const raw = await response.text()
+    console.error('Gemini indisponível:', response.status, raw)
+    let reason = ''
+    try { reason = String(JSON.parse(raw)?.error?.message ?? '') } catch { reason = '' }
+    const cota = /quota|exceeded|billing|limit/i.test(reason)
+    return {
+      error: json({
+        error: cota
+          ? 'A cota da chave de IA acabou (limite do plano do Google). Ajuste a cobrança da chave ou troque o modelo.'
+          : 'O serviço de IA está sobrecarregado agora. Tente de novo em alguns instantes.',
+        detail: reason.slice(0, 300) || `HTTP ${response.status}`,
+        modelo: GEMINI_MODEL
+      }, 429)
+    }
   }
   if (!response.ok) {
     const raw = await response.text()
