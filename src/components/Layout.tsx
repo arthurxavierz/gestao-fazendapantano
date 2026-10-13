@@ -1,11 +1,10 @@
 import {
-  ArrowLeftRight,
-  CalendarDays,
-  ClipboardCheck,
+  Baby,
+  ClipboardList,
   Database,
-  FileText,
-  HeartPulse,
+  Hash,
   LayoutDashboard,
+  ListChecks,
   LogOut,
   Menu,
   PawPrint,
@@ -13,19 +12,20 @@ import {
   RotateCcw,
   Scale,
   Search,
-  Settings2,
-  ShieldCheck,
-  ShoppingCart,
-  Stethoscope,
+  Shield,
+  Sparkles,
   Syringe,
+  Users,
   Dna,
   X,
   type LucideIcon
 } from 'lucide-react'
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useAppData } from '../AppContext'
+import { useFazenda } from '../AppContext'
 import { roleLabel, useAuth } from '../AuthContext'
+import { ativo, mesmoBrinco } from '../domain/regras'
+import { reiniciarDemonstracao } from '../services/banco'
 import { isSupabaseConfigured } from '../services/supabase'
 import { Brand } from './Brand'
 import { ErrorBoundary } from './ErrorBoundary'
@@ -35,64 +35,56 @@ interface NavItem {
   label: string
   icon: LucideIcon
   adminOnly?: boolean
+  end?: boolean
 }
 
 const navGroups: { title: string; items: NavItem[] }[] = [
-  {
-    title: 'Visão geral',
-    items: [
-      { to: '/', label: 'Painel', icon: LayoutDashboard },
-      { to: '/agenda', label: 'Agenda', icon: CalendarDays }
-    ]
-  },
+  { title: 'Visão geral', items: [{ to: '/', label: 'Painel', icon: LayoutDashboard, end: true }] },
   {
     title: 'Rebanho',
     items: [
       { to: '/animais', label: 'Animais', icon: PawPrint },
-      { to: '/compras', label: 'Compras e lotes', icon: ShoppingCart },
-      { to: '/contagens', label: 'Contagens', icon: ClipboardCheck }
+      { to: '/femeas', label: 'Fêmeas e IATF', icon: Dna },
+      { to: '/bezerros', label: 'Bezerros', icon: Baby },
+      { to: '/numeros', label: 'Números disponíveis', icon: Hash }
     ]
   },
   {
     title: 'Manejo',
     items: [
-      { to: '/reproducao', label: 'Reprodução', icon: Dna },
-      { to: '/manejo', label: 'Sanitário e pesagem', icon: Syringe },
-      { to: '/ocorrencias', label: 'Ocorrências', icon: Stethoscope }
+      { to: '/manejos/lote', label: 'Manejo em lote', icon: ListChecks },
+      { to: '/manejos', label: 'Histórico de manejos', icon: Syringe, end: true }
     ]
   },
   {
-    title: 'Gestão',
+    title: 'Campo e IMA',
     items: [
-      { to: '/relatorios', label: 'Documentos', icon: FileText },
-      { to: '/administracao', label: 'Administração', icon: ShieldCheck, adminOnly: true },
-      { to: '/configuracoes', label: 'Regras da fazenda', icon: Settings2, adminOnly: true }
+      { to: '/quadro', label: 'Quadro de campo', icon: ClipboardList },
+      { to: '/ima', label: 'Comparar com o IMA', icon: Shield }
     ]
-  }
+  },
+  { title: 'Gestão', items: [{ to: '/contas', label: 'Contas e acessos', icon: Users, adminOnly: true }] }
 ]
 
-/** Atalhos do botão "Novo registro". Cada um abre direto o formulário certo. */
+/** Atalhos do botão "Novo registro". */
 const quickActions: { to: string; label: string; hint: string; icon: LucideIcon }[] = [
-  { to: '/animais/novo', label: 'Cadastrar animal', hint: 'Com foto e leitura do brinco', icon: PawPrint },
-  { to: '/manejo?acao=pesagem', label: 'Pesagem', hint: 'Pesar um lote no curral', icon: Scale },
-  { to: '/manejo?acao=vacina', label: 'Vacina ou remédio', hint: 'Aplicar em um ou vários', icon: Syringe },
-  { to: '/reproducao?acao=protocolo', label: 'Iniciar protocolo', hint: 'IATF ou monta', icon: Dna },
-  { to: '/manejo?acao=movimentar', label: 'Movimentação', hint: 'Trocar de lote, venda, abate', icon: ArrowLeftRight },
-  { to: '/ocorrencias?nova=1', label: 'Ocorrência', hint: 'Doença, observação, morte', icon: HeartPulse },
-  { to: '/contagens?nova=1', label: 'Contagem', hint: 'Conferir um curral ou pasto', icon: ClipboardCheck }
+  { to: '/animais?novo=1', label: 'Cadastrar animal', hint: 'Brinco, foto e dados', icon: PawPrint },
+  { to: '/animais/completar', label: 'Completar cadastro', hint: 'Sexo e faixa, um por um', icon: Sparkles },
+  { to: '/manejos/lote', label: 'Manejo em lote', hint: 'Vacinar vários, marcar quem faltou', icon: ListChecks },
+  { to: '/femeas', label: 'Protocolo ou parto', hint: 'Abrir a vaca e lançar', icon: Dna },
+  { to: '/quadro?aba=lancar', label: 'Lançar do quadro', hint: 'O que foi anotado no campo', icon: ClipboardList },
+  { to: '/manejos?novo=1', label: 'Manejo de um animal', hint: 'Vacina, remédio, pesagem', icon: Scale }
 ]
 
 export function Layout() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [quickOpen, setQuickOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const [searchMessage, setSearchMessage] = useState<string | null>(null)
   const navigate = useNavigate()
   const location = useLocation()
   const { isAdmin, role, displayName, signOut } = useAuth()
-  const { animals, missingTables, schemaOutdated } = useAppData()
+  const { dados, bancoDesatualizado } = useFazenda()
   const quickRef = useRef<HTMLDivElement>(null)
-  const sheetRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setMenuOpen(false)
@@ -102,23 +94,17 @@ export function Layout() {
   useEffect(() => {
     if (!quickOpen) return
     const close = (event: MouseEvent) => {
-      // O menu do computador e a folha do celular contam como "dentro": tocar
-      // num atalho não pode fechar o menu antes do clique chegar ao botão.
-      const target = event.target as Node
-      if (quickRef.current?.contains(target) || sheetRef.current?.contains(target)) return
-      if ((target as Element).closest?.('.bottom-fab')) return
+      const target = event.target as Element
+      if (quickRef.current?.contains(target) || target.closest?.('.quick-sheet') || target.closest?.('.bottom-fab')) return
       setQuickOpen(false)
     }
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
   }, [quickOpen])
 
-  /** Modo demonstração: apaga o que foi lançado e recarrega o rebanho de exemplo. */
   function resetDemo() {
-    if (!window.confirm('Reiniciar a demonstração? Tudo o que foi lançado neste navegador volta ao exemplo inicial.')) return
-    try {
-      Object.keys(localStorage).filter((key) => key.startsWith('pantano.v2.')).forEach((key) => localStorage.removeItem(key))
-    } catch { /* armazenamento indisponível */ }
+    if (!window.confirm('Reiniciar a demonstração? Tudo o que foi lançado neste navegador volta ao rebanho da planilha.')) return
+    reiniciarDemonstracao()
     window.location.assign('/')
   }
 
@@ -127,24 +113,21 @@ export function Layout() {
     navigate('/login', { replace: true })
   }
 
-  /** Busca direta pelo brinco: achou exato, abre a ficha; senão, abre a lista filtrada. */
+  /** Busca pelo brinco: achou exato, abre a ficha; senão, abre a lista filtrada. */
   function submitSearch(event: FormEvent) {
     event.preventDefault()
-    const value = search.trim()
+    const value = search.trim().replace(/^x/i, '')
     if (!value) return
-    const exact = animals.find((item) => item.number.toLowerCase() === value.toLowerCase())
-      ?? animals.find((item) => item.number.replace(/^0+/, '') === value.replace(/^0+/, ''))
+    const exact = dados.animais.find((item) => ativo(item) && mesmoBrinco(item.brinco, value))
+      ?? dados.animais.find((item) => ativo(item) && item.brinco.replace(/^0+/, '') === value.replace(/^0+/, ''))
+    const calf = exact ? null : dados.bezerros.find((item) => mesmoBrinco(item.codigo, value))
     setSearch('')
-    if (exact) {
-      setSearchMessage(null)
-      navigate(`/animais/${exact.id}`)
-    } else {
-      navigate(`/animais?busca=${encodeURIComponent(value)}`)
-    }
+    if (exact) navigate(`/animais/${exact.id}`)
+    else if (calf) navigate(`/bezerros/${calf.id}`)
+    else navigate(`/animais?busca=${encodeURIComponent(value)}`)
   }
 
   const today = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
-  const needsMigration = isSupabaseConfigured && (missingTables.length > 0 || schemaOutdated)
 
   return (
     <div className="app-shell">
@@ -163,8 +146,8 @@ export function Layout() {
             return (
               <div className="nav-group" key={group.title}>
                 <span className="nav-group-title">{group.title}</span>
-                {items.map(({ to, label, icon: Icon }) => (
-                  <NavLink key={to} to={to} end={to === '/'}>
+                {items.map(({ to, label, icon: Icon, end }) => (
+                  <NavLink key={to} to={to} end={end}>
                     <Icon size={19} />
                     <span>{label}</span>
                   </NavLink>
@@ -184,12 +167,12 @@ export function Layout() {
           </div>
           <div className="connection-note">
             <span className={`connection-dot ${isSupabaseConfigured ? 'online' : ''}`} />
-            {isSupabaseConfigured ? 'Banco conectado' : 'Modo demonstração'}
+            {isSupabaseConfigured ? 'Banco conectado' : 'Demonstração no navegador'}
           </div>
           <div className="sidebar-actions">
             <button className="text-button sidebar-signout" onClick={() => void handleSignOut()}><LogOut size={17} /> Sair</button>
             {!isSupabaseConfigured && (
-              <button className="text-button sidebar-signout" onClick={resetDemo} title="Volta o rebanho de exemplo ao estado inicial"><RotateCcw size={15} /> Reiniciar demo</button>
+              <button className="text-button sidebar-signout" onClick={resetDemo} title="Volta ao rebanho da planilha"><RotateCcw size={15} /> Reiniciar demo</button>
             )}
           </div>
         </div>
@@ -201,16 +184,9 @@ export function Layout() {
           <div className="topbar-brand"><Brand compact /></div>
           <form className="global-search" onSubmit={submitSearch} role="search">
             <Search size={18} />
-            <input
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setSearchMessage(null) }}
-              placeholder="Buscar brinco…"
-              inputMode="search"
-              aria-label="Buscar animal pelo brinco"
-            />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar brinco…" inputMode="search" aria-label="Buscar animal pelo brinco" />
             <kbd>Enter</kbd>
           </form>
-          {searchMessage && <span className="search-message">{searchMessage}</span>}
           <span className="topbar-date">{today}</span>
           <div className="quick-wrap" ref={quickRef}>
             <button className="button button-primary top-add" onClick={() => setQuickOpen((value) => !value)} aria-expanded={quickOpen}>
@@ -220,14 +196,12 @@ export function Layout() {
           </div>
         </header>
 
-        {needsMigration && (
+        {bancoDesatualizado && (
           <div className="schema-banner">
             <Database size={18} />
             <div>
-              <strong>Banco de dados com versão anterior.</strong>{' '}
-              {isAdmin
-                ? 'Para usar reprodução, sanitário, pesagens e compras, execute o arquivo supabase/schema.sql atualizado no SQL Editor do Supabase. Os dados atuais são preservados.'
-                : 'Alguns módulos novos ainda não estão disponíveis. Avise o administrador.'}
+              <strong>O banco ainda não tem as tabelas do rebanho.</strong>{' '}
+              {isAdmin ? 'Execute supabase/schema.sql e depois supabase/rebanho-planilha.sql no SQL Editor do Supabase.' : 'Avise o administrador.'}
             </div>
           </div>
         )}
@@ -239,13 +213,13 @@ export function Layout() {
         <NavLink to="/" end><LayoutDashboard size={21} /><span>Painel</span></NavLink>
         <NavLink to="/animais"><PawPrint size={21} /><span>Animais</span></NavLink>
         <button className={`bottom-fab ${quickOpen ? 'is-open' : ''}`} onClick={() => setQuickOpen((value) => !value)} aria-label="Novo registro"><Plus size={26} /></button>
-        <NavLink to="/reproducao"><Dna size={21} /><span>Reprodução</span></NavLink>
-        <NavLink to="/manejo"><Syringe size={21} /><span>Manejo</span></NavLink>
+        <NavLink to="/femeas"><Dna size={21} /><span>Fêmeas</span></NavLink>
+        <NavLink to="/manejos/lote"><ListChecks size={21} /><span>Manejo</span></NavLink>
       </nav>
 
       {quickOpen && (
         <div className="quick-sheet-backdrop" onClick={() => setQuickOpen(false)}>
-          <div className="quick-sheet" ref={sheetRef} onClick={(e) => e.stopPropagation()}>
+          <div className="quick-sheet" onClick={(e) => e.stopPropagation()}>
             <span className="quick-sheet-handle" />
             <strong className="quick-sheet-title">O que você quer registrar?</strong>
             <QuickMenu onPick={(to) => navigate(to)} sheet />

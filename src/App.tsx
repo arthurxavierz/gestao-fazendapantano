@@ -3,23 +3,19 @@ import { AppProvider } from './AppContext'
 import { AuthProvider, useAuth } from './AuthContext'
 import { Layout } from './components/Layout'
 import { Loading } from './components/Loading'
-import { HerdProvider } from './hooks/useHerd'
-import { Admin } from './pages/Admin'
-import { Agenda } from './pages/Agenda'
-import { AnimalDetail } from './pages/AnimalDetail'
-import { AnimalForm } from './pages/AnimalForm'
-import { Animals } from './pages/Animals'
-import { BulkAnimals } from './pages/BulkAnimals'
-import { Counts } from './pages/Counts'
-import { Dashboard } from './pages/Dashboard'
-import { ImportAnimals } from './pages/ImportAnimals'
+import { Animais } from './pages/Animais'
+import { Bezerros, FichaBezerro } from './pages/Bezerros'
+import { Completar } from './pages/Completar'
+import { Contas } from './pages/Contas'
+import { Femeas } from './pages/Femeas'
+import { Ficha } from './pages/Ficha'
+import { Ima } from './pages/Ima'
 import { Login } from './pages/Login'
-import { Manejo } from './pages/Manejo'
-import { Occurrences } from './pages/Occurrences'
-import { PurchaseDetail, Purchases } from './pages/Purchases'
-import { Reports } from './pages/Reports'
-import { Reproduction } from './pages/Reproduction'
-import { Settings } from './pages/Settings'
+import { Lote } from './pages/Lote'
+import { Manejos } from './pages/Manejos'
+import { Numeros } from './pages/Numeros'
+import { Painel } from './pages/Painel'
+import { Quadro } from './pages/Quadro'
 
 function ProtectedLayout() {
   const { loading, authenticated } = useAuth()
@@ -27,9 +23,7 @@ function ProtectedLayout() {
   if (!authenticated) return <Navigate to="/login" replace />
   return (
     <AppProvider>
-      <HerdProvider>
-        <Layout />
-      </HerdProvider>
+      <Layout />
     </AppProvider>
   )
 }
@@ -48,23 +42,19 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route element={<ProtectedLayout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="animais" element={<Animals />} />
-          <Route path="animais/novo" element={<AnimalForm />} />
-          <Route path="animais/importar" element={<AdminOnly><ImportAnimals /></AdminOnly>} />
-          <Route path="animais/lote" element={<BulkAnimals />} />
-          <Route path="animais/:id" element={<AnimalDetail />} />
-          <Route path="animais/:id/editar" element={<AnimalForm />} />
-          <Route path="agenda" element={<Agenda />} />
-          <Route path="reproducao" element={<Reproduction />} />
-          <Route path="manejo" element={<Manejo />} />
-          <Route path="compras" element={<Purchases />} />
-          <Route path="compras/:id" element={<PurchaseDetail />} />
-          <Route path="contagens" element={<Counts />} />
-          <Route path="ocorrencias" element={<Occurrences />} />
-          <Route path="relatorios" element={<Reports />} />
-          <Route path="administracao" element={<AdminOnly><Admin /></AdminOnly>} />
-          <Route path="configuracoes" element={<AdminOnly><Settings /></AdminOnly>} />
+          <Route index element={<Painel />} />
+          <Route path="animais" element={<Animais />} />
+          <Route path="animais/completar" element={<Completar />} />
+          <Route path="animais/:id" element={<Ficha />} />
+          <Route path="femeas" element={<Femeas />} />
+          <Route path="bezerros" element={<Bezerros />} />
+          <Route path="bezerros/:id" element={<FichaBezerro />} />
+          <Route path="numeros" element={<Numeros />} />
+          <Route path="manejos" element={<Manejos />} />
+          <Route path="manejos/lote" element={<Lote />} />
+          <Route path="quadro" element={<Quadro />} />
+          <Route path="ima" element={<Ima />} />
+          <Route path="contas" element={<AdminOnly><Contas /></AdminOnly>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

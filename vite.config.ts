@@ -16,7 +16,7 @@ function resolveBrand(mode: string) {
     return {
       title: farmName,
       short: farmName.replace(/^Fazenda\s+/i, ''),
-      description: `Gestão agropecuária da ${farmName}: rebanho, reprodução, sanitário e pesagens`,
+      description: `Gestão do rebanho da ${farmName}: animais, IATF, bezerros, manejos e IMA`,
       themeColor: '#12301f',
       background: '#f4f1e9',
       favicon: '/icons/fazenda-favicon.svg',
@@ -73,7 +73,14 @@ export default defineConfig(({ mode }) => {
           navigateFallback: '/index.html',
           // As chamadas às funções de servidor nunca podem cair no app em cache.
           navigateFallbackDenylist: [/^\/api\//, /^\/\.netlify\//],
-          globPatterns: ['**/*.{js,css,html,svg,png,woff2}']
+          globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+          // Fotos do rebanho: guardadas no aparelho depois da primeira vez, para a
+          // lista abrir rápido no curral, mesmo com sinal fraco.
+          runtimeCaching: [{
+            urlPattern: ({ url }) => url.pathname.startsWith('/rebanho/') || url.pathname.includes('/storage/v1/object/public/animal-photos/'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'fotos-rebanho', expiration: { maxEntries: 1500, maxAgeSeconds: 60 * 60 * 24 * 90 } }
+          }]
         }
       })
     ]

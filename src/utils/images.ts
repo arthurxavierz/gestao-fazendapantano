@@ -1,5 +1,3 @@
-import type { Animal } from '../types'
-
 export interface ExportImage {
   dataUrl: string
   bytes: Uint8Array
@@ -102,16 +100,6 @@ export function loadExportImage(url?: string | null, options: LoadOptions = {}):
   const task = withTimeout(render(url, options), 15000).catch(() => null)
   cache.set(key, task)
   return task
-}
-
-/** Carrega as miniaturas de uma lista de animais, indexadas pelo id do animal. */
-export async function loadAnimalImages(animals: Animal[], options: LoadOptions = {}) {
-  const entries = await Promise.all(
-    animals.map(async (animal) => [animal.id, await loadExportImage(animal.photo_url, options)] as const)
-  )
-  const map = new Map<string, ExportImage>()
-  for (const [id, image] of entries) if (image) map.set(id, image)
-  return map
 }
 
 /** Calcula largura e altura que cabem numa caixa, mantendo a proporção da foto. */

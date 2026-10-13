@@ -1,8 +1,6 @@
-import type { Profile } from '../types'
-import { demoProfiles } from './demoData'
+import type { Profile, UserRole } from '../types'
 import { callFunction } from './functions'
-import { localKey, readLocal, writeLocal } from './store'
-import { isSupabaseConfigured } from './supabase'
+import { isSupabaseConfigured, supabase } from './supabase'
 
 /**
  * Gestão de contas (criar, trocar senha e e-mail, excluir).
@@ -19,9 +17,43 @@ const legacyUrl = supabaseUrl ? `${supabaseUrl.replace(/\/+$/, '')}/functions/v1
 
 export const isUserAdminAvailable = true
 
-const PROFILES_KEY = localKey('profiles')
-export const readDemoProfiles = () => readLocal<Profile[]>(PROFILES_KEY, demoProfiles)
-export const writeDemoProfiles = (profiles: Profile[]) => writeLocal(PROFILES_KEY, profiles)
+const PROFILES_KEY = 'pantano.v3.contas'
+const demoProfiles: Profile[] = [
+  { id: 'u-admin', full_name: 'Administrador da fazenda', email: 'admin@fazendapantano.com.br', role: 'administrador', created_at: '2026-10-01T12:00:00.000Z' },
+  { id: 'u-campo', full_name: 'Equipe do campo', email: 'campo@fazendapantano.com.br', role: 'operador', created_at: '2026-10-01T12:00:00.000Z' }
+]
+
+export function readDemoProfiles(): Profile[] {
+  try {
+    const raw = localStorage.getItem(PROFILES_KEY)
+    if (raw) return JSON.parse(raw) as Profile[]
+  } catch { /* armazenamento indisponível */ }
+  return demoProfiles
+}
+
+export function writeDemoProfiles(profiles: Profile[]) {
+  try { localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles)) } catch { /* cheio */ }
+}
+
+export async function listProfiles(): Promise<Profile[]> {
+  if (!isSupabaseConfigured || !supabase) return readDemoProfiles()
+  const { data, error } = await supabase.from('profiles').select('*').order('full_name')
+  if (error) throw new Error(error.message)
+  return (data ?? []) as Profile[]
+}
+
+export async function updateProfileRole(id: string, role: UserRole): Promise<void> {
+  if (!isSupabaseConfigured || !supabase) {
+    const profiles = readDemoProfiles()
+    if (role !== 'administrador' && profiles.find((item) => item.id === id)?.role === 'administrador' && profiles.filter((item) => item.role === 'administrador').length <= 1) {
+      throw new Error('É preciso manter pelo menos um administrador no sistema.')
+    }
+    writeDemoProfiles(profiles.map((item) => (item.id === id ? { ...item, role } : item)))
+    return
+  }
+  const { error } = await supabase.from('profiles').update({ role }).eq('id', id)
+  if (error) throw new Error(error.message)
+}
 
 type Action = 'criar' | 'redefinir_senha' | 'alterar_email' | 'excluir'
 

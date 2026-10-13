@@ -1,16 +1,8 @@
 /**
- * Situação geral do animal.
- * 'descarte' significa que ele foi separado para abate (por exemplo, a matriz
- * que esgotou as tentativas de prenhez). 'abatido' é a saída efetiva.
+ * Modelo de dados do rebanho, espelhando a planilha Gado_Rebanho_Fazenda (v11).
+ * As regras que operam sobre estes tipos estão em src/domain/regras.ts e a
+ * descrição completa em docs/REGRAS-DA-PLANILHA.md.
  */
-export type AnimalStatus = 'normal' | 'observacao' | 'doente' | 'descarte' | 'morto' | 'vendido' | 'abatido'
-export type AnimalSex = 'macho' | 'femea' | 'nao_informado'
-
-/** Categoria zootécnica. Quando não informada, é deduzida pelo sexo e pela idade. */
-export type AnimalCategory = 'bezerro' | 'bezerra' | 'garrote' | 'novilha' | 'vaca' | 'touro' | 'boi'
-
-/** De onde o animal veio. Nascido aponta para a mãe; comprado aponta para o lote de compra. */
-export type OriginType = 'nascido' | 'comprado' | 'nao_informado'
 
 export type UserRole = 'administrador' | 'operador'
 
@@ -23,10 +15,160 @@ export interface Profile {
   created_at: string
 }
 
+export type Sexo = 'M' | 'F'
+export type Faixa = '0 a 12' | '13 a 24' | '25 a 36' | 'Acima de 36'
+export type MotivoSaida = 'Venda' | 'Morte' | 'Descarte'
+export type ResultadoProtocolo = 'Prenha' | 'Vazia'
+
+/** Um animal do rebanho (aba Geral, com os dados das abas Machos e Fêmeas). */
+export interface Animal {
+  id: string
+  /** Brinco. Único entre os ativos; volta a ficar livre quando o animal sai. */
+  brinco: string
+  sexo: Sexo | null
+  nascimento: string | null
+  /** Faixa informada à mão. Com nascimento, vale a faixa calculada. */
+  faixa: Faixa | null
+  raca: string | null
+  cor: string | null
+  no_ima: boolean | null
+  observacoes: string | null
+  /** Conferência da foto do cadastro inicial ("Conferir no curral: ..."). */
+  conferencia: string | null
+  foto_url: string | null
+  /** Ordem original da planilha, para a lista abrir igual. */
+  ordem: number | null
+  /** Fêmea: número do ciclo de IATF atual (começa em 1, sobe a cada parto). */
+  ciclo: number
+  /** Macho: avaliação, data da avaliação e peso. */
+  avaliacao: string | null
+  data_avaliacao: string | null
+  peso: number | null
+  /** Saída do rebanho. Preenchida = animal baixado (aparece como X + brinco). */
+  saida: MotivoSaida | null
+  data_saida: string | null
+  /** Quando veio de um bezerro incorporado, o id do bezerro. */
+  bezerro_id: string | null
+  created_by?: string | null
+  created_at: string
+  updated_at?: string | null
+}
+
+/** Um protocolo de IATF de uma fêmea: 1º, 2º ou 3º do ciclo. */
+export interface Protocolo {
+  id: string
+  animal_id: string
+  ciclo: number
+  /** 1, 2 ou 3. */
+  numero: number
+  apta: 'S' | 'N' | null
+  motivo: string | null
+  data_protocolo: string | null
+  data_confirmacao: string | null
+  resultado: ResultadoProtocolo | null
+  created_by?: string | null
+  created_at: string
+}
+
+/** Ciclo encerrado pelo parto (aba Protocolos anteriores). */
+export interface CicloEncerrado {
+  id: string
+  animal_id: string
+  ciclo: number
+  data_parto: string | null
+  bezerro_codigo: string | null
+  encerrado_em: string
+  created_by?: string | null
+  created_at: string
+}
+
+export type SituacaoBezerro = 'Mamando' | 'Ficou na fazenda' | 'Vendido' | 'Morto' | 'Descarte' | 'Incorporado ao rebanho'
+
+export interface Bezerro {
+  id: string
+  /** Código provisório: <brinco da mãe>-B<n>. */
+  codigo: string
+  mae_id: string
+  nascimento: string | null
+  sexo: Sexo | null
+  situacao: SituacaoBezerro
+  data_destino: string | null
+  brinco_definitivo: string | null
+  observacoes: string | null
+  incorporado_em: string | null
+  /** Animal criado ao incorporar. */
+  animal_id: string | null
+  created_by?: string | null
+  created_at: string
+}
+
+export type StatusManejo = 'Feito' | 'Pendente' | 'Feito depois'
+
+/** Uma linha do histórico de manejos (aba Manejos). */
+export interface Manejo {
+  id: string
+  data: string
+  /** Animal ou bezerro: exatamente um dos dois. */
+  animal_id: string | null
+  bezerro_id: string | null
+  manejo: string
+  produtos: string | null
+  observacao: string | null
+  status: StatusManejo
+  feito_em: string | null
+  /** Manejos lançados juntos (manejo em lote) compartilham o mesmo lote_id. */
+  lote_id: string | null
+  created_by?: string | null
+  created_at: string
+}
+
+export type SituacaoNumero = 'Disponível' | 'Reutilizado' | 'Baixa desfeita'
+
+/** Número de brinco liberado por uma saída (aba Números disponíveis). */
+export interface NumeroLiberado {
+  id: string
+  numero: string
+  animal_id: string
+  liberado_em: string
+  /** Como o registro ficou guardado: X149. */
+  registro_antigo: string
+  situacao: SituacaoNumero
+  motivo: string | null
+  reutilizado_em: string | null
+  created_by?: string | null
+  created_at: string
+}
+
+export type ContagemIma = Record<Faixa, { M: number; F: number }>
+
+/** Consolidado do IMA digitado para comparação. */
+export interface RelatorioIma {
+  id: string
+  data_relatorio: string | null
+  contagem: ContagemIma
+  created_by?: string | null
+  created_at: string
+}
+
+export type CodigoQuadro = 'N' | 'M' | 'S' | 'V' | 'F' | 'P' | 'D' | 'O'
+
+/** Linha lançada a partir do quadro de campo (aba Lançar do quadro). */
+export interface LancamentoQuadro {
+  id: string
+  data: string | null
+  brinco: string
+  codigo: string
+  detalhe: string | null
+  resultado: string
+  ok: boolean
+  created_by?: string | null
+  created_at: string
+}
+
 /** Quanto a IA confia na própria leitura. 'ilegivel' significa que ela não conseguiu ler. */
 export type AiConfidence = 'alta' | 'media' | 'baixa' | 'ilegivel'
 
-/** O que a IA interpretou a partir da foto. Nada disso é salvo sem confirmação do usuário. */
+/** O que a IA interpretou a partir da foto do animal. Nada disso é salvo sem confirmação. */
 export interface AiPhotoAnalysis {
   numero: string
   numero_confianca: AiConfidence
@@ -36,200 +178,11 @@ export interface AiPhotoAnalysis {
   observacao: string
 }
 
-/** Registro do que a IA sugeriu e do que o usuário de fato aceitou, para medir o acerto ao longo do tempo. */
-export interface AiAnalysisRecord {
-  analisado_em: string
-  modelo: string
-  sugestao: AiPhotoAnalysis
-  campos_aceitos: string[]
-}
-
-export interface Animal {
-  id: string
-  number: string
-  name?: string | null
-  photo_url?: string | null
-  sex: AnimalSex
-  category?: AnimalCategory | null
-  breed?: string | null
-  coat?: string | null
-  birth_date?: string | null
-  birth_date_approximate?: boolean
-  weight?: number | null
-  lot?: string | null
-  /** Texto livre herdado das versões anteriores. O vínculo real fica em origin_type. */
-  origin?: string | null
-  origin_type?: OriginType | null
-  /** Mãe, quando o animal nasceu na fazenda. */
-  mother_id?: string | null
-  /** Touro ou sêmen usado. Texto porque o pai raramente está cadastrado. */
-  sire?: string | null
-  /** Lote de compra, quando o animal foi comprado. */
-  purchase_batch_id?: string | null
-  /** Data em que o animal entrou no rebanho (nascimento ou chegada). */
-  entry_date?: string | null
-  exit_date?: string | null
-  exit_reason?: string | null
-  status: AnimalStatus
-  notes?: string | null
-  ai_analysis?: AiAnalysisRecord | null
-  created_by?: string | null
-  updated_by?: string | null
-  created_at: string
-  updated_at: string
-}
-
-export type OccurrenceType = 'observacao' | 'doenca' | 'morte' | 'recuperado' | 'descarte' | 'outro'
-
-export interface Occurrence {
-  id: string
-  animal_id: string
-  animal_number?: string
-  type: OccurrenceType
-  note: string
-  photo_url?: string | null
-  created_at: string
-  created_by?: string | null
-}
-
-export interface CountSession {
-  id: string
-  title: string
-  mode: 'individual' | 'quantity'
-  expected_total?: number | null
-  total_counted: number
-  animal_numbers: string[]
-  notes?: string | null
-  created_by?: string | null
-  created_at: string
-}
-
-/** Compra de um grupo de animais. Todo animal comprado aponta para uma destas. */
-export interface PurchaseBatch {
-  id: string
-  code: string
-  supplier?: string | null
-  purchase_date: string
-  quantity?: number | null
-  total_value?: number | null
-  avg_weight?: number | null
-  gta?: string | null
-  notes?: string | null
-  created_by?: string | null
-  created_at: string
-}
-
-export type ProtocolStepKind = 'aplicacao' | 'retirada' | 'inseminacao' | 'diagnostico' | 'outro'
-
-export interface ProtocolStep {
-  /** Dia relativo ao início do protocolo (D0, D8, D10...). */
-  day: number
-  title: string
-  description?: string
-  kind: ProtocolStepKind
-}
-
-export type BreedingMethod = 'iatf' | 'ia' | 'monta' | 'te'
-export type BreedingResult = 'pendente' | 'prenhe' | 'vazia' | 'aborto' | 'parida'
-
-/** Modelo de protocolo reprodutivo (IATF, repasse com touro etc). */
-export interface ReproProtocol {
-  id: string
-  name: string
-  description?: string | null
-  method: BreedingMethod
-  steps: ProtocolStep[]
-  active: boolean
-  created_by?: string | null
-  created_at: string
-}
-
-/**
- * Uma tentativa de prenhez de uma matriz. Cada protocolo iniciado é uma linha.
- * A sequência de tentativas sem sucesso é o que leva ao descarte.
- */
-export interface BreedingAttempt {
-  id: string
-  animal_id: string
-  method: BreedingMethod
-  protocol_id?: string | null
-  protocol_name?: string | null
-  /** Cópia dos passos no momento do início, para o histórico não mudar se o modelo for editado. */
-  steps: ProtocolStep[]
-  /** Índices dos passos concluídos e quando. */
-  steps_done: { index: number; done_at: string }[]
-  start_date: string
-  insemination_date?: string | null
-  sire?: string | null
-  technician?: string | null
-  diagnosis_date?: string | null
-  result: BreedingResult
-  expected_calving_date?: string | null
-  calving_date?: string | null
-  calf_id?: string | null
-  notes?: string | null
-  created_by?: string | null
-  created_at: string
-}
-
-export type HealthKind = 'vacina' | 'vermifugo' | 'carrapaticida' | 'medicamento' | 'exame' | 'outro'
-
-/** Aplicação sanitária em um animal. Aplicações em lote geram uma linha por animal. */
-export interface HealthEvent {
-  id: string
-  animal_id: string
-  kind: HealthKind
-  product: string
-  dose?: string | null
-  applied_at: string
-  next_due_date?: string | null
-  /** Fim da carência: o animal não deve ir para abate antes desta data. */
-  withdrawal_until?: string | null
-  product_batch?: string | null
-  notes?: string | null
-  created_by?: string | null
-  created_at: string
-}
-
-export interface Weighing {
-  id: string
-  animal_id: string
-  weighed_at: string
-  weight: number
-  notes?: string | null
-  created_by?: string | null
-  created_at: string
-}
-
-/** Regras que mudam de fazenda para fazenda. Ficam numa única linha no banco. */
-export interface FarmSettings {
-  /** Tentativas seguidas sem prenhez até a matriz ir para descarte. */
-  max_breeding_attempts: number
-  /** Duração média da gestação, em dias, para prever o parto. */
-  gestation_days: number
-  /** Dias após a inseminação para o diagnóstico de gestação. */
-  diagnosis_days: number
-  /** Idade mínima, em meses, para uma fêmea entrar em reprodução. */
-  min_breeding_age_months: number
-}
-
-export interface DashboardSummary {
-  total: number
-  normal: number
-  observacao: number
-  doente: number
-  morto: number
-  vendido: number
-}
-
-/** Folhas de campo impressas pelo sistema e lidas depois por IA. */
-export type SheetKind = 'diagnostico' | 'pesagem' | 'sanitario'
-
-export interface SheetReadRow {
-  numero: string
-  numero_confianca: AiConfidence
-  marcado: boolean
-  marcado_confianca: AiConfidence
-  valor: string
-  observacao: string
+/** Uma anotação do quadro de campo lida pela IA a partir da foto. */
+export interface LeituraQuadro {
+  data: string
+  brinco: string
+  codigo: string
+  detalhe: string
+  confianca: AiConfidence
 }
