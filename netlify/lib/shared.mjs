@@ -59,23 +59,30 @@ export function rateLimited(request, max = 20, windowMs = 10 * 60 * 1000) {
  * Erros viram mensagens em português para a tela.
  */
 export async function askGemini({ imageBase64, mimeType, prompt, schema }) {
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
+  // Modelo sobrecarregado (503/429/500) costuma passar em segundos: tenta de
+  // novo e, se houver GEMINI_FALLBACK_MODEL, usa ele na última tentativa.
+  const models = [GEMINI_MODEL, GEMINI_MODEL, process.env.GEMINI_FALLBACK_MODEL || GEMINI_MODEL]
   let response
-  try {
-    response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
-      body: JSON.stringify({
-        contents: [{ parts: [{ inline_data: { mime_type: mimeType, data: imageBase64 } }, { text: prompt }] }],
-        generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: schema }
+  for (let attempt = 0; attempt < models.length; attempt += 1) {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${models[attempt]}:generateContent`
+    try {
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
+        body: JSON.stringify({
+          contents: [{ parts: [{ inline_data: { mime_type: mimeType, data: imageBase64 } }, { text: prompt }] }],
+          generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: schema }
+        })
       })
-    })
-  } catch {
-    return { error: json({ error: 'Não foi possível falar com o serviço de análise. Verifique a internet.' }, 500) }
+    } catch {
+      return { error: json({ error: 'Não foi possível falar com o serviço de análise. Verifique a internet.' }, 500) }
+    }
+    if (![429, 500, 503].includes(response.status) || attempt === models.length - 1) break
+    await new Promise((resolve) => setTimeout(resolve, 1200 * (attempt + 1)))
   }
 
-  if (response.status === 429) {
-    return { error: json({ error: 'Limite de análises atingido por agora. Tente de novo em alguns minutos.' }, 429) }
+  if (response.status === 429 || response.status === 503) {
+    return { error: json({ error: 'O serviço de IA está sobrecarregado agora. Tente de novo em alguns instantes.' }, 429) }
   }
   if (!response.ok) {
     const raw = await response.text()
