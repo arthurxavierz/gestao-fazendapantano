@@ -1,4 +1,4 @@
-import { Download, LayoutGrid, List, PawPrint, Plus, Search, Sparkles } from 'lucide-react'
+import { Download, LayoutGrid, List, PawPrint, Plus, Search, Sparkles, Upload } from 'lucide-react'
 import { FormEvent, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { type LinhaRebanho, useFazenda } from '../AppContext'
@@ -93,6 +93,7 @@ export function Animais() {
         title="Animais"
         text="Toque no animal para abrir a ficha completa. Sexo e faixa podem ser preenchidos direto na lista."
         actions={<>
+          <button className="button button-secondary" onClick={() => navigate('/animais/importar')}><Upload size={17} /> Importar</button>
           {counts.sem > 0 && <button className="button button-secondary" onClick={() => navigate('/animais/completar')}><Sparkles size={17} /> Completar cadastro</button>}
           <button className="button button-primary" onClick={() => { params.set('novo', '1'); setParams(params) }}><Plus size={17} /> Cadastrar animal</button>
         </>}

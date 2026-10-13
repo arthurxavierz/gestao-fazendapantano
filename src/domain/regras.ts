@@ -4,9 +4,11 @@ import type {
   CicloEncerrado,
   ContagemIma,
   Faixa,
+  FichaCampo,
   Manejo,
   NumeroLiberado,
   Protocolo,
+  Revisao,
   Sexo
 } from '../types'
 
@@ -36,6 +38,8 @@ export interface Fazenda {
   bezerros: Bezerro[]
   manejos: Manejo[]
   numeros: NumeroLiberado[]
+  revisoes: Revisao[]
+  fichas: FichaCampo[]
 }
 
 // ---------------------------------------------------------------- datas

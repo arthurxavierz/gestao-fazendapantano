@@ -1713,3 +1713,88 @@ button.foto { cursor: zoom-in; }
   .ficha-dados-largo .form-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .ficha-dados-largo .field-wide { grid-column: span 2; }
 }
+/* Painel só com tabela (sem padding): a tabela ocupa o painel inteiro, sem margem negativa. */
+.table-panel > .table-wrap, .table-panel > .table-wrap:not(:last-child) { margin: 0; border-top: 0; border-bottom: 0; }
+
+/* ==========================================================================
+   Revisão do cadastro, importação em massa e fichas de campo
+   ========================================================================== */
+.texto-erro { display: block; color: var(--red); font-weight: 650; font-size: .8rem; }
+.texto-aviso { display: block; color: var(--amber); font-weight: 650; font-size: .78rem; }
+.texto-ok { display: inline-flex; align-items: center; gap: 4px; color: var(--accent-700); font-weight: 700; font-size: .78rem; }
+.checkbox-linha { display: flex; align-items: center; gap: 9px; font-size: .86rem; color: var(--ink-2); cursor: pointer; }
+.checkbox-linha input { width: 18px; height: 18px; accent-color: var(--accent-600); flex: none; }
+.acoes-celula { display: flex; gap: 6px; justify-content: flex-end; }
+
+/* Revisão */
+.pares { display: grid; gap: 14px; }
+.par-motivo { font-weight: 800; font-size: .82rem; color: var(--ink); margin-bottom: 12px; }
+.par-lados { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.par-lado { display: grid; gap: 10px; align-content: start; }
+.par-lado .foto-lg { aspect-ratio: 4 / 3; }
+.par-info { display: grid; gap: 3px; }
+.par-brinco { font: 800 1.6rem/1 var(--font-display); color: var(--ink); text-decoration: none; }
+.par-info span { color: var(--ink-2); font-size: .84rem; font-weight: 600; }
+.par-info small { color: var(--muted); font-size: .76rem; }
+.par-rodape { display: flex; justify-content: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.juntar-resumo { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 12px; color: var(--muted); }
+.juntar-resumo > div { display: grid; justify-items: center; gap: 6px; }
+.juntar-resumo strong { font: 800 1.3rem var(--font-display); color: var(--ink); }
+.conferir-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.conferir-card { display: grid; gap: 10px; align-content: start; padding: 14px; }
+.conferir-nota { margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--amber-50); color: var(--amber); font-size: .82rem; font-weight: 600; }
+.conferir-acoes { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+.conferir-rodape { display: flex; justify-content: space-between; align-items: center; }
+
+/* Importação */
+.import-drop { width: 100%; display: grid; justify-items: center; gap: 8px; padding: 34px 20px; border: 2px dashed var(--line-strong); border-radius: 16px; background: var(--surface-2); color: var(--ink-2); text-align: center; cursor: pointer; }
+.import-drop:hover { border-color: var(--accent); }
+.import-drop span { max-width: 560px; color: var(--muted); font-size: .86rem; }
+.import-drop code { background: var(--surface); padding: 1px 5px; border-radius: 5px; }
+.import-dicas { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; font-size: .86rem; color: var(--ink-2); }
+.import-dicas p { margin: 0; max-width: 720px; }
+.mapa-colunas { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.import-resumo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.import-chip { display: grid; padding: 8px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); text-align: left; cursor: pointer; }
+.import-chip strong { font: 800 1.3rem/1.1 var(--font-display); }
+.import-chip span { color: var(--muted); font-size: .74rem; font-weight: 650; }
+.import-chip.selected { border-color: var(--accent-600); box-shadow: var(--ring); }
+.import-tabela { max-height: 60vh; overflow: auto; }
+.detalhes-import { display: grid; gap: 2px; }
+.fotos-barra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 16px 0 12px; }
+.fotos-barra .progress { flex: 1; min-width: 120px; }
+.fotos-lote { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.foto-item { display: grid; gap: 5px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.foto-item img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }
+.foto-item input { min-height: 34px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 8px; font-weight: 700; }
+.foto-item.sem-animal { border-color: var(--red-100); background: var(--red-50); }
+.foto-item.is-ok { border-color: #9fd3b2; background: #eef7f1; }
+.foto-item.is-enviando { opacity: .6; }
+.foto-nome { color: var(--muted); font-size: .7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Fichas de campo */
+.ficha-passos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.ficha-passos div { display: grid; grid-template-columns: 34px 1fr; column-gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+.ficha-passos span { grid-row: span 2; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--navy-900); color: var(--mint); font-weight: 800; }
+.ficha-passos strong { font-size: .9rem; }
+.ficha-passos small { color: var(--muted); font-size: .78rem; }
+.colunas-ficha { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; padding: 12px; border-radius: 12px; background: var(--surface-2); }
+.ler-ficha-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+.ler-ficha-topo p { margin: 4px 0 0; }
+.ler-ficha-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.tabela-conferencia td { white-space: nowrap; }
+.tabela-conferencia select, .tabela-conferencia input { min-height: 34px; padding: 0 6px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); font-weight: 650; }
+.input-mini { width: 76px; }
+.input-obs { width: 100%; min-width: 180px; }
+.tabela-conferencia tr.linha-marcada td { background: #f3f9f5; }
+.tabela-conferencia tr.linha-duvida td { background: var(--amber-50); }
+
+@media (max-width: 760px) {
+  .par-lados { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .par-brinco { font-size: 1.25rem; }
+  .par-lado .button { white-space: normal; height: auto; padding: 8px; }
+  .ficha-passos { grid-template-columns: 1fr; }
+  .conferir-acoes { grid-template-columns: 1fr; }
+}
+.pares { max-width: 1040px; }
+.par-lado .foto-lg { aspect-ratio: 16 / 11; max-height: 340px; }

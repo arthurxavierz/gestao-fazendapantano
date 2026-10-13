@@ -5,6 +5,7 @@ import { useFazenda } from '../AppContext'
 import { useAuth } from '../AuthContext'
 import { brand } from '../brand'
 import { Loading } from '../components/Loading'
+import { paresSuspeitos } from '../domain/revisao'
 import { avisoBezerro, ativo, FAIXAS, quadroPorFaixa } from '../domain/regras'
 import { plural } from '../utils/format'
 
@@ -29,6 +30,7 @@ export function Painel() {
       semSexo: active.filter((item) => !item.animal.sexo).length,
       semFaixa: active.filter((item) => !item.faixa).length,
       conferir: active.filter((item) => item.animal.conferencia?.startsWith('Conferir')).length,
+      duplicados: paresSuspeitos(dados).length,
       prenhas: femeas.filter((item) => item.situacao.texto === 'Prenha').length,
       descarte: femeas.filter((item) => item.situacao.texto.startsWith('Descarte')).length,
       aguardando: femeas.filter((item) => item.situacao.texto === 'Aguardando protocolo' || item.situacao.texto.startsWith('Vazia')).length,
@@ -52,7 +54,8 @@ export function Painel() {
     resumo.pendentes > 0 && { tom: 'red', icon: ListChecks, texto: `${plural(resumo.pendentes, 'manejo pendente', 'manejos pendentes')} (faltaram)`, to: '/manejos?status=Pendente' },
     resumo.semDestino > 0 && { tom: 'red', icon: Baby, texto: `${plural(resumo.semDestino, 'bezerro', 'bezerros')} com 8+ meses sem destino`, to: '/bezerros?filtro=sem-destino' },
     resumo.prontos > 0 && { tom: 'emerald', icon: Baby, texto: `${plural(resumo.prontos, 'bezerro pronto', 'bezerros prontos')} para incorporar`, to: '/bezerros?filtro=prontos' },
-    resumo.conferir > 0 && { tom: 'amber', icon: CircleHelp, texto: `${plural(resumo.conferir, 'foto', 'fotos')} para conferir no curral`, to: '/animais?filtro=conferir' },
+    resumo.duplicados > 0 && { tom: 'amber', icon: CircleHelp, texto: `${plural(resumo.duplicados, 'possível animal repetido', 'possíveis animais repetidos')}`, to: '/revisao' },
+    resumo.conferir > 0 && { tom: 'amber', icon: CircleHelp, texto: `${plural(resumo.conferir, 'foto', 'fotos')} para conferir no curral`, to: '/revisao?aba=conferir' },
     resumo.semFaixa - resumo.semSexo > 0 && { tom: 'slate', icon: CircleHelp, texto: `${plural(resumo.semFaixa - resumo.semSexo, 'animal', 'animais')} com sexo mas sem faixa`, to: '/animais?filtro=sem-faixa' }
   ].filter(Boolean) as { tom: string; icon: typeof Sparkles; texto: string; to: string }[]
 

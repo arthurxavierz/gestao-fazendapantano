@@ -5,6 +5,9 @@ import {
   Hash,
   LayoutDashboard,
   ListChecks,
+  NotebookPen,
+  ScanSearch,
+  Upload,
   LogOut,
   Menu,
   PawPrint,
@@ -43,7 +46,9 @@ const navGroups: { title: string; items: NavItem[] }[] = [
   {
     title: 'Rebanho',
     items: [
-      { to: '/animais', label: 'Animais', icon: PawPrint },
+      { to: '/animais', label: 'Animais', icon: PawPrint, end: true },
+      { to: '/revisao', label: 'Revisão do cadastro', icon: ScanSearch },
+      { to: '/animais/importar', label: 'Importar animais', icon: Upload },
       { to: '/femeas', label: 'Fêmeas e IATF', icon: Dna },
       { to: '/bezerros', label: 'Bezerros', icon: Baby },
       { to: '/numeros', label: 'Números disponíveis', icon: Hash }
@@ -59,6 +64,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
   {
     title: 'Campo e IMA',
     items: [
+      { to: '/fichas', label: 'Fichas de campo', icon: NotebookPen },
       { to: '/quadro', label: 'Quadro de campo', icon: ClipboardList },
       { to: '/ima', label: 'Comparar com o IMA', icon: Shield }
     ]
@@ -72,6 +78,8 @@ const quickActions: { to: string; label: string; hint: string; icon: LucideIcon 
   { to: '/animais/completar', label: 'Completar cadastro', hint: 'Sexo e faixa, um por um', icon: Sparkles },
   { to: '/manejos/lote', label: 'Manejo em lote', hint: 'Vacinar vários, marcar quem faltou', icon: ListChecks },
   { to: '/femeas', label: 'Protocolo ou parto', hint: 'Abrir a vaca e lançar', icon: Dna },
+  { to: '/fichas', label: 'Ficha de campo', hint: 'Imprimir ou ler a folha marcada', icon: NotebookPen },
+  { to: '/animais/importar', label: 'Importar animais', hint: 'Planilha ou fotos em lote', icon: Upload },
   { to: '/quadro?aba=lancar', label: 'Lançar do quadro', hint: 'O que foi anotado no campo', icon: ClipboardList },
   { to: '/manejos?novo=1', label: 'Manejo de um animal', hint: 'Vacina, remédio, pesagem', icon: Scale }
 ]

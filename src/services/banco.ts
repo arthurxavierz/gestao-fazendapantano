@@ -17,12 +17,14 @@ export const TABELAS: Record<Tabela | 'ima' | 'quadro', string> = {
   bezerros: 'rebanho_bezerros',
   manejos: 'rebanho_manejos',
   numeros: 'rebanho_numeros',
+  revisoes: 'rebanho_revisoes',
+  fichas: 'rebanho_fichas',
   ima: 'rebanho_ima',
   quadro: 'rebanho_quadro'
 }
 
 const PREFIX = 'pantano.v3.'
-const ORDEM: (keyof Fazenda)[] = ['animais', 'protocolos', 'ciclos', 'bezerros', 'manejos', 'numeros']
+const ORDEM: (keyof Fazenda)[] = ['animais', 'protocolos', 'ciclos', 'bezerros', 'manejos', 'numeros', 'revisoes', 'fichas']
 
 export interface Extras {
   ima: RelatorioIma[]
@@ -34,7 +36,7 @@ export type Dados = Fazenda & Extras
 /** Os 402 animais da aba Geral da planilha v11, com foto e conferência. */
 export function rebanhoDaPlanilha(): Animal[] {
   const created = '2026-10-05T12:00:00.000Z'
-  return (seed as { ordem: number; brinco: string; foto: string | null; conferencia: string | null }[]).map((row) => ({
+  return (seed as { ordem: number; brinco: string; foto: string | null; conferencia: string | null; hash: string | null }[]).map((row) => ({
     id: `planilha-${row.ordem}`,
     brinco: row.brinco,
     sexo: null,
@@ -46,6 +48,7 @@ export function rebanhoDaPlanilha(): Animal[] {
     observacoes: null,
     conferencia: row.conferencia,
     foto_url: row.foto,
+    foto_hash: row.hash,
     ordem: row.ordem,
     ciclo: 1,
     avaliacao: null,
@@ -119,16 +122,18 @@ export async function carregar(): Promise<Dados> {
       bezerros: readLocal('bezerros', () => []),
       manejos: readLocal('manejos', () => []),
       numeros: readLocal('numeros', () => []),
+      revisoes: readLocal('revisoes', () => []),
+      fichas: readLocal('fichas', () => []),
       ima: readLocal('ima', () => []),
       quadro: readLocal('quadro', () => [])
     }
   }
-  const [animais, protocolos, ciclos, bezerros, manejos, numeros, ima, quadro] = await Promise.all([
+  const [animais, protocolos, ciclos, bezerros, manejos, numeros, revisoes, fichas, ima, quadro] = await Promise.all([
     ...ORDEM.map((key) => listar(TABELAS[key])),
     listar<RelatorioIma>(TABELAS.ima),
     listar<LancamentoQuadro>(TABELAS.quadro)
   ])
-  return { animais, protocolos, ciclos, bezerros, manejos, numeros, ima, quadro } as Dados
+  return { animais, protocolos, ciclos, bezerros, manejos, numeros, revisoes, fichas, ima, quadro } as Dados
 }
 
 /** Campos que o banco preenche (autoria por gatilho) e não devem ir na gravação. */
@@ -216,8 +221,46 @@ export async function reduzirFoto(file: File, maxSide = 1280): Promise<Blob> {
   return await new Promise((resolve) => canvas.toBlob((blob) => resolve(blob ?? file), 'image/jpeg', 0.82))
 }
 
-export async function enviarFoto(file: File, brinco: string): Promise<string> {
+/**
+ * dHash de 64 bits (9x8 em tons de cinza): fotos do mesmo animal tiradas do
+ * mesmo jeito ficam com poucos bits diferentes. Mesmo cálculo usado na carga
+ * inicial das fotos da planilha.
+ */
+export async function hashFoto(blob: Blob): Promise<string | null> {
+  try {
+    const bitmap = await createImageBitmap(blob)
+    const canvas = document.createElement('canvas')
+    canvas.width = 9
+    canvas.height = 8
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (!ctx) return null
+    ctx.drawImage(bitmap, 0, 0, 9, 8)
+    bitmap.close()
+    const px = ctx.getImageData(0, 0, 9, 8).data
+    const gray = (i: number) => px[i * 4] * 0.299 + px[i * 4 + 1] * 0.587 + px[i * 4 + 2] * 0.114
+    let hex = ''
+    for (let y = 0; y < 8; y += 1) {
+      let nibbleRow = 0
+      for (let x = 0; x < 8; x += 1) nibbleRow = (nibbleRow << 1) | (gray(y * 9 + x) > gray(y * 9 + x + 1) ? 1 : 0)
+      hex += nibbleRow.toString(16).padStart(2, '0')
+    }
+    return hex
+  } catch {
+    return null
+  }
+}
+
+export async function enviarFotoComHash(file: File, brinco: string): Promise<{ url: string; hash: string | null }> {
   const blob = await reduzirFoto(file, isSupabaseConfigured ? 1280 : 720)
+  const [url, hash] = await Promise.all([enviarBlob(blob, brinco), hashFoto(blob)])
+  return { url, hash }
+}
+
+export async function enviarFoto(file: File, brinco: string): Promise<string> {
+  return (await enviarFotoComHash(file, brinco)).url
+}
+
+async function enviarBlob(blob: Blob, brinco: string): Promise<string> {
   if (!isSupabaseConfigured || !supabase) {
     return await new Promise<string>((resolve, reject) => {
       const reader = new FileReader()

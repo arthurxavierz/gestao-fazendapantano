@@ -89,6 +89,7 @@ export interface DadosAnimal {
   observacoes?: string | null
   conferencia?: string | null
   foto_url?: string | null
+  foto_hash?: string | null
 }
 
 export function cadastrarAnimal(fazenda: Fazenda, dados: DadosAnimal): Resultado & { id: string } {
@@ -110,6 +111,7 @@ export function cadastrarAnimal(fazenda: Fazenda, dados: DadosAnimal): Resultado
     observacoes: dados.observacoes || null,
     conferencia: dados.conferencia || null,
     foto_url: dados.foto_url ?? null,
+    foto_hash: dados.foto_hash ?? null,
     ordem: null,
     ciclo: 1,
     avaliacao: null,
@@ -174,7 +176,7 @@ export function salvarDados(fazenda: Fazenda, animalId: string, dados: Partial<D
     if (dados.faixa && !FAIXAS.includes(dados.faixa)) throw new Recusa('Faixa etária inválida.')
     patch.faixa = dados.faixa ?? null
   }
-  for (const key of ['raca', 'cor', 'observacoes', 'conferencia', 'foto_url'] as const) {
+  for (const key of ['raca', 'cor', 'observacoes', 'conferencia', 'foto_url', 'foto_hash'] as const) {
     if (dados[key] !== undefined) patch[key] = dados[key] || null
   }
   if (dados.no_ima !== undefined) patch.no_ima = dados.no_ima

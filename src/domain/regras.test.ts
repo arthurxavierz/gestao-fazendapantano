@@ -33,7 +33,7 @@ import {
   situacaoDoAnimal
 } from './regras'
 
-const base = (): Fazenda => ({ animais: [], protocolos: [], ciclos: [], bezerros: [], manejos: [], numeros: [] })
+const base = (): Fazenda => ({ animais: [], protocolos: [], ciclos: [], bezerros: [], manejos: [], numeros: [], revisoes: [], fichas: [] })
 
 function comAnimal(fazenda: Fazenda, brinco: string, extra: Partial<Animal> = {}) {
   const result = cadastrarAnimal(fazenda, { brinco })

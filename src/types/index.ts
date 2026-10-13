@@ -36,6 +36,8 @@ export interface Animal {
   /** Conferência da foto do cadastro inicial ("Conferir no curral: ..."). */
   conferencia: string | null
   foto_url: string | null
+  /** Impressão digital da foto (dHash de 64 bits, em hexadecimal), para achar fotos repetidas. */
+  foto_hash?: string | null
   /** Ordem original da planilha, para a lista abrir igual. */
   ordem: number | null
   /** Fêmea: número do ciclo de IATF atual (começa em 1, sobe a cada parto). */
@@ -163,6 +165,57 @@ export interface LancamentoQuadro {
   ok: boolean
   created_by?: string | null
   created_at: string
+}
+
+/** Par de animais que alguém conferiu e disse que são diferentes (some da revisão de duplicados). */
+export interface Revisao {
+  id: string
+  a_id: string
+  b_id: string
+  decisao: 'diferentes'
+  created_by?: string | null
+  created_at: string
+}
+
+/** Colunas de checklist que a ficha de campo traz. */
+export interface ColunasFicha {
+  sexo: boolean
+  faixa: boolean
+  peso: boolean
+  diagnostico: boolean
+  saida: boolean
+}
+
+/**
+ * Ficha de campo impressa: a lista de animais (na ordem impressa) com as
+ * colunas de checklist. O código vai impresso no topo para a IA saber qual é.
+ */
+export interface FichaCampo {
+  id: string
+  codigo: string
+  titulo: string
+  data: string
+  /** Manejo do dia (vacina, pesagem...). Presente = feito; ausente = pendente. */
+  manejo: string | null
+  produtos: string | null
+  colunas: ColunasFicha
+  animal_ids: string[]
+  aplicada_em: string | null
+  created_by?: string | null
+  created_at: string
+}
+
+/** Uma linha da ficha lida pela IA (ou digitada na conferência). */
+export interface LeituraFicha {
+  brinco: string
+  presente: boolean | null
+  sexo: 'M' | 'F' | ''
+  faixa: string
+  peso: string
+  diagnostico: 'prenha' | 'vazia' | ''
+  saida: 'morte' | 'venda' | 'descarte' | ''
+  observacao: string
+  confianca: AiConfidence
 }
 
 /** Quanto a IA confia na própria leitura. 'ilegivel' significa que ela não conseguiu ler. */

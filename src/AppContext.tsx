@@ -41,7 +41,7 @@ interface FazendaValue {
   avisar: (texto: string, tom?: 'ok' | 'erro') => void
 }
 
-const vazio: Dados = { animais: [], protocolos: [], ciclos: [], bezerros: [], manejos: [], numeros: [], ima: [], quadro: [] }
+const vazio: Dados = { animais: [], protocolos: [], ciclos: [], bezerros: [], manejos: [], numeros: [], revisoes: [], fichas: [], ima: [], quadro: [] }
 
 const FazendaContext = createContext<FazendaValue | null>(null)
 

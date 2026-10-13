@@ -8,6 +8,9 @@ import { Bezerros, FichaBezerro } from './pages/Bezerros'
 import { Completar } from './pages/Completar'
 import { Contas } from './pages/Contas'
 import { Femeas } from './pages/Femeas'
+import { Fichas, LerFicha } from './pages/Fichas'
+import { Importar } from './pages/Importar'
+import { Revisao } from './pages/Revisao'
 import { Ficha } from './pages/Ficha'
 import { Ima } from './pages/Ima'
 import { Login } from './pages/Login'
@@ -45,6 +48,10 @@ export default function App() {
           <Route index element={<Painel />} />
           <Route path="animais" element={<Animais />} />
           <Route path="animais/completar" element={<Completar />} />
+          <Route path="animais/importar" element={<Importar />} />
+          <Route path="revisao" element={<Revisao />} />
+          <Route path="fichas" element={<Fichas />} />
+          <Route path="fichas/:id" element={<LerFicha />} />
           <Route path="animais/:id" element={<Ficha />} />
           <Route path="femeas" element={<Femeas />} />
           <Route path="bezerros" element={<Bezerros />} />

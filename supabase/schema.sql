@@ -108,6 +108,8 @@ create table if not exists public.rebanho_animais (
   created_at timestamptz not null default now(),
   updated_at timestamptz
 );
+alter table public.rebanho_animais add column if not exists foto_hash text;
+
 -- Brinco único entre os ativos: quem saiu libera o número para reutilizar.
 create unique index if not exists rebanho_animais_brinco_ativo on public.rebanho_animais (lower(brinco)) where saida is null;
 create index if not exists rebanho_animais_ordem on public.rebanho_animais (ordem);
@@ -204,6 +206,31 @@ create table if not exists public.rebanho_ima (
   created_at timestamptz not null default now()
 );
 
+-- Pares conferidos como animais diferentes (somem da revisão de duplicados).
+create table if not exists public.rebanho_revisoes (
+  id uuid primary key default gen_random_uuid(),
+  a_id uuid not null references public.rebanho_animais(id) on delete cascade,
+  b_id uuid not null references public.rebanho_animais(id) on delete cascade,
+  decisao text not null default 'diferentes' check (decisao in ('diferentes')),
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+-- Fichas de campo impressas (checklist marcado à caneta e lido por IA).
+create table if not exists public.rebanho_fichas (
+  id uuid primary key default gen_random_uuid(),
+  codigo text not null unique,
+  titulo text not null,
+  data date not null,
+  manejo text,
+  produtos text,
+  colunas jsonb not null default '{}'::jsonb,
+  animal_ids uuid[] not null default '{}',
+  aplicada_em timestamptz,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
 -- Linhas lançadas do quadro de campo.
 create table if not exists public.rebanho_quadro (
   id uuid primary key default gen_random_uuid(),
@@ -226,7 +253,8 @@ do $$
 declare t text;
 begin
   foreach t in array array['rebanho_animais', 'rebanho_protocolos', 'rebanho_ciclos', 'rebanho_bezerros',
-                           'rebanho_manejos', 'rebanho_numeros', 'rebanho_ima', 'rebanho_quadro']
+                           'rebanho_manejos', 'rebanho_numeros', 'rebanho_ima', 'rebanho_quadro',
+                           'rebanho_revisoes', 'rebanho_fichas']
   loop
     execute format('drop trigger if exists %1$s_autoria on public.%1$s', t);
     execute format('create trigger %1$s_autoria before insert or update on public.%1$s for each row execute procedure public.rebanho_autoria()', t);
