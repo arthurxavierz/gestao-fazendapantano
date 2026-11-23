@@ -11,7 +11,8 @@ import { whatsappReady } from '../lib/campo/whatsapp.mjs'
 export default async () => {
   if (!supabaseReady || !whatsappReady) return new Response('não configurado')
   const report = await runRoutine(productionDeps())
-  if (report.reprocessar.length && process.env.URL) await triggerProcessing(process.env.URL, report.reprocessar)
+  const origin = process.env.DEPLOY_PRIME_URL || process.env.URL
+  if (report.reprocessar.length && origin) await triggerProcessing(origin, report.reprocessar)
   console.log('Rotina do WhatsApp', report)
   return new Response(JSON.stringify(report))
 }

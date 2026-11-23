@@ -51,6 +51,8 @@ export function configStatus() {
   }
 }
 
+/** Endereço deste mesmo deploy. process.env.URL é sempre o site principal, que pode não ter esta versão. */
 export function siteOrigin(request) {
-  return process.env.URL || new URL(request.url).origin
+  if (request?.url) return new URL(request.url).origin
+  return process.env.DEPLOY_PRIME_URL || process.env.URL || ''
 }
