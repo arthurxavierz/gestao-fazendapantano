@@ -69,6 +69,8 @@ Duas restrições guiaram o projeto: **o operador usa o celular no meio do pasto
 
 **A chave da IA nunca chega ao navegador.** A chamada ao Gemini vive em funções do Netlify (`netlify/functions`); a chave fica nas variáveis de ambiente do site. Com banco ligado, as funções só atendem quem tem sessão válida no Supabase.
 
+**Assistente de campo pelo WhatsApp.** O peão registra o manejo por áudio e consulta o rebanho em linguagem natural. Gemini transcreve, Claude interpreta com ferramentas que consultam o banco, e o sistema confere cada proposta contra as regras antes de pedir confirmação. Mensagens atrasadas por falta de sinal valem pela hora em que foram gravadas, reenvios não duplicam e todo lançamento tem código para desfazer. Detalhes em [docs/WHATSAPP.md](docs/WHATSAPP.md).
+
 **Pronto para o banco, funcionando sem ele.** Sem as chaves do Supabase, tudo roda em modo demonstração, inclusive as leituras por IA e a gestão de contas. Ligar o banco é cadastrar variáveis e rodar o `schema.sql`, sem mudar código.
 
 **Leitor de planilha escrito à mão** e **gráficos em SVG puro.** Sem dependências pesadas para o que cabe em poucas dezenas de linhas. As bibliotecas de PDF e Word só são baixadas quando alguém gera um documento.
@@ -77,7 +79,7 @@ Duas restrições guiaram o projeto: **o operador usa o celular no meio do pasto
 
 ## Stack
 
-`React 18` · `TypeScript` · `Vite` · `Supabase` (Postgres, Auth, Storage) · `Netlify Functions` · `Google Gemini` · `jsPDF` · `docx` · `PWA`
+`React 18` · `TypeScript` · `Vite` · `Supabase` (Postgres, Auth, Storage) · `Netlify Functions` · `Google Gemini` · `Claude (Anthropic)` · `WhatsApp Cloud API` · `jsPDF` · `docx` · `PWA`
 
 ## Rodando localmente
 
@@ -141,7 +143,8 @@ src/
   services/     Supabase, modo demonstração, repositório genérico, IA (brinco e folhas)
   utils/        Exportadores (PDF/Word), imagens, formatação
 netlify/
-  functions/    Funções de servidor: leitura do brinco, leitura de folha, gestão de contas
+  functions/    Funções de servidor: leitura do brinco, leitura de folha, gestão de contas, WhatsApp
+  lib/campo/    Assistente de campo: fluxo, IA, conferência e gravação dos lançamentos
 supabase/
   schema.sql    Tabelas, triggers de autoria, políticas RLS, bucket de fotos e migração v2
   functions/    Versões antigas das funções (Edge Functions), mantidas como alternativa

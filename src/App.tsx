@@ -20,6 +20,7 @@ import { PurchaseDetail, Purchases } from './pages/Purchases'
 import { Reports } from './pages/Reports'
 import { Reproduction } from './pages/Reproduction'
 import { Settings } from './pages/Settings'
+import { WhatsApp } from './pages/WhatsApp'
 
 function ProtectedLayout() {
   const { loading, authenticated } = useAuth()
@@ -65,6 +66,7 @@ export default function App() {
           <Route path="relatorios" element={<Reports />} />
           <Route path="administracao" element={<AdminOnly><Admin /></AdminOnly>} />
           <Route path="configuracoes" element={<AdminOnly><Settings /></AdminOnly>} />
+          <Route path="whatsapp" element={<AdminOnly><WhatsApp /></AdminOnly>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

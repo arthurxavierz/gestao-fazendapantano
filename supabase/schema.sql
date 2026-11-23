@@ -514,3 +514,199 @@ select * from (values
   )
 ) as seed(name, description, method, steps)
 where not exists (select 1 from public.repro_protocols);
+
+-- ============================================================
+-- Versão 3: assistente de campo pelo WhatsApp
+-- ============================================================
+-- O peão manda áudio, texto ou foto para o número da fazenda. A IA transcreve,
+-- interpreta, confere com o rebanho e pede confirmação antes de gravar.
+-- Tudo fica guardado: a mensagem original, o áudio, a transcrição, o que a IA
+-- entendeu, quem confirmou e quais registros foram criados. Idempotente.
+
+-- Números autorizados a falar com o assistente.
+create table if not exists public.whatsapp_contacts (
+  id uuid primary key default gen_random_uuid(),
+  -- Só dígitos, com DDI: 5534999998888.
+  phone text not null unique check (phone ~ '^[0-9]{10,15}$'),
+  name text not null,
+  -- Conta do sistema ligada ao número. É ela que aparece como autora dos registros.
+  profile_id uuid references public.profiles(id) on delete set null,
+  -- 'consulta' só pergunta; 'lancamento' pergunta e registra.
+  permission text not null default 'lancamento' check (permission in ('consulta', 'lancamento')),
+  active boolean not null default true,
+  notes text,
+  last_seen_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+-- Trava curta por contato: duas mensagens que chegam juntas são processadas
+-- em ordem, uma de cada vez, sem uma atropelar a outra.
+alter table public.whatsapp_contacts add column if not exists processing_until timestamptz;
+
+-- Cada mensagem que entra ou sai. É o livro de registro do canal.
+create table if not exists public.whatsapp_messages (
+  id uuid primary key default gen_random_uuid(),
+  -- Identificador da Meta. Único: a Meta reenvia o mesmo aviso quando a
+  -- conexão falha, e o banco recusa a cópia.
+  wamid text unique,
+  direction text not null check (direction in ('in', 'out')),
+  phone text not null,
+  contact_id uuid references public.whatsapp_contacts(id) on delete set null,
+  kind text not null default 'text',
+  body text,
+  media_id text,
+  media_mime text,
+  -- Caminho do arquivo guardado no bucket whatsapp-media (áudio original, foto).
+  media_path text,
+  transcription text,
+  -- Quando a mensagem foi gravada no celular (pode ser horas antes, sem sinal).
+  sent_at timestamptz,
+  received_at timestamptz not null default now(),
+  status text not null default 'recebido'
+    check (status in ('recebido', 'processando', 'respondido', 'erro', 'ignorado', 'enviado', 'entregue', 'lido', 'falhou', 'simulado')),
+  attempts integer not null default 0,
+  error text,
+  -- Rastro da IA: modelo, ferramentas chamadas, consumo de tokens.
+  interpretation jsonb,
+  reply_to uuid references public.whatsapp_messages(id) on delete set null,
+  action_id uuid,
+  simulated boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists whatsapp_messages_phone_idx on public.whatsapp_messages(phone, sent_at desc);
+create index if not exists whatsapp_messages_status_idx on public.whatsapp_messages(status);
+create index if not exists whatsapp_messages_received_idx on public.whatsapp_messages(received_at desc);
+
+-- Lançamentos propostos pela IA. Só viram registro depois de confirmados.
+create table if not exists public.whatsapp_actions (
+  id uuid primary key default gen_random_uuid(),
+  -- Código curto para o peão citar ("desfazer K7P2").
+  code text not null unique,
+  contact_id uuid references public.whatsapp_contacts(id) on delete set null,
+  message_id uuid references public.whatsapp_messages(id) on delete set null,
+  session_id uuid,
+  kind text not null,
+  payload jsonb not null,
+  summary text not null,
+  warnings jsonb not null default '[]'::jsonb,
+  -- Data do manejo (vem do horário da mensagem, não da chegada).
+  event_date date not null,
+  status text not null default 'pendente'
+    check (status in ('pendente', 'confirmada', 'aplicada', 'cancelada', 'expirada', 'erro', 'desfeita')),
+  confirmed_at timestamptz,
+  confirmed_by_message uuid references public.whatsapp_messages(id) on delete set null,
+  applied_at timestamptz,
+  -- Registros criados ou alterados: [{ "table": "...", "id": "...", "op": "insert" | "update", "before": {...} }]
+  result_refs jsonb not null default '[]'::jsonb,
+  error text,
+  reminder_sent_at timestamptz,
+  undone_at timestamptz,
+  simulated boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists whatsapp_actions_contact_idx on public.whatsapp_actions(contact_id, created_at desc);
+create index if not exists whatsapp_actions_status_idx on public.whatsapp_actions(status);
+
+-- Modo lote: "começar vacinação do lote 3", depois só os números, depois "fechar".
+create table if not exists public.whatsapp_sessions (
+  id uuid primary key default gen_random_uuid(),
+  contact_id uuid references public.whatsapp_contacts(id) on delete cascade,
+  kind text not null,
+  params jsonb not null default '{}'::jsonb,
+  -- [{ "number": "401", "value": null, "message_id": "...", "at": "..." }]
+  entries jsonb not null default '[]'::jsonb,
+  status text not null default 'aberta' check (status in ('aberta', 'fechada', 'cancelada')),
+  started_at timestamptz not null default now(),
+  closed_at timestamptz,
+  action_id uuid references public.whatsapp_actions(id) on delete set null,
+  simulated boolean not null default false
+);
+
+create index if not exists whatsapp_sessions_open_idx on public.whatsapp_sessions(contact_id) where status = 'aberta';
+
+-- Origem de cada registro do manejo: app (tela) ou whatsapp (com o lançamento).
+alter table public.animals add column if not exists origin_channel text not null default 'app';
+alter table public.occurrences add column if not exists origin_channel text not null default 'app';
+alter table public.breeding_attempts add column if not exists origin_channel text not null default 'app';
+alter table public.health_events add column if not exists origin_channel text not null default 'app';
+alter table public.weighings add column if not exists origin_channel text not null default 'app';
+alter table public.animals add column if not exists origin_ref uuid;
+alter table public.occurrences add column if not exists origin_ref uuid;
+alter table public.breeding_attempts add column if not exists origin_ref uuid;
+alter table public.health_events add column if not exists origin_ref uuid;
+alter table public.weighings add column if not exists origin_ref uuid;
+
+-- A autoria continua vindo da sessão. A única exceção é o servidor (service_role),
+-- que grava em nome da conta ligada ao número do WhatsApp. Navegador nenhum
+-- consegue usar esse caminho, então a rastreabilidade segue impossível de forjar.
+create or replace function public.set_actor()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  actor uuid := auth.uid();
+  is_server boolean := coalesce(auth.role(), '') = 'service_role';
+begin
+  if TG_OP = 'INSERT' then
+    new.created_by = case when is_server then new.created_by else actor end;
+  end if;
+  if TG_TABLE_NAME = 'animals' then
+    new.updated_by = case when is_server then coalesce(new.updated_by, new.created_by) else actor end;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists whatsapp_messages_set_updated_at on public.whatsapp_messages;
+create trigger whatsapp_messages_set_updated_at before update on public.whatsapp_messages
+for each row execute procedure public.set_updated_at();
+
+alter table public.whatsapp_contacts enable row level security;
+alter table public.whatsapp_messages enable row level security;
+alter table public.whatsapp_actions enable row level security;
+alter table public.whatsapp_sessions enable row level security;
+
+-- O canal é administrado pelo administrador. O servidor usa a service_role,
+-- que não passa por estas políticas.
+drop policy if exists "whatsapp_contacts_admin" on public.whatsapp_contacts;
+create policy "whatsapp_contacts_admin" on public.whatsapp_contacts
+for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "whatsapp_messages_admin_read" on public.whatsapp_messages;
+create policy "whatsapp_messages_admin_read" on public.whatsapp_messages
+for select to authenticated using (public.is_admin());
+
+drop policy if exists "whatsapp_actions_admin_read" on public.whatsapp_actions;
+create policy "whatsapp_actions_admin_read" on public.whatsapp_actions
+for select to authenticated using (public.is_admin());
+
+drop policy if exists "whatsapp_sessions_admin_read" on public.whatsapp_sessions;
+create policy "whatsapp_sessions_admin_read" on public.whatsapp_sessions
+for select to authenticated using (public.is_admin());
+
+-- Áudios e fotos recebidos. Privado: só o administrador ouve pelo sistema.
+insert into storage.buckets (id, name, public)
+values ('whatsapp-media', 'whatsapp-media', false)
+on conflict (id) do nothing;
+
+drop policy if exists "whatsapp_media_admin_read" on storage.objects;
+create policy "whatsapp_media_admin_read" on storage.objects
+for select to authenticated using (bucket_id = 'whatsapp-media' and public.is_admin());
+
+-- Acrescenta números a um lote aberto de forma atômica. Duas mensagens
+-- chegando juntas nunca apagam o número uma da outra.
+create or replace function public.whatsapp_session_append(p_session uuid, p_entries jsonb)
+returns public.whatsapp_sessions
+language sql
+security definer set search_path = public
+as $$
+  update public.whatsapp_sessions
+  set entries = entries || p_entries
+  where id = p_session and status = 'aberta'
+  returning *;
+$$;
+
+revoke all on function public.whatsapp_session_append(uuid, jsonb) from public, anon, authenticated;

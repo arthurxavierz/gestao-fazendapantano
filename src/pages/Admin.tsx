@@ -19,6 +19,8 @@ interface ActivityEntry {
   detail: string
   authorId: string | null
   createdAt: string
+  /** Lançado pelo assistente do WhatsApp (com áudio e confirmação guardados). */
+  viaWhatsapp?: boolean
 }
 
 const kindMeta = {
@@ -75,6 +77,7 @@ export function Admin() {
         title: `Animal ${animal.number}`,
         detail: [animal.breed, animal.lot].filter(Boolean).join(' · ') || 'Cadastro criado',
         authorId: animal.created_by ?? null,
+        viaWhatsapp: (animal as { origin_channel?: string }).origin_channel === 'whatsapp',
         createdAt: animal.created_at
       })),
       ...occurrences.map((item) => ({
@@ -83,6 +86,7 @@ export function Admin() {
         title: `${occurrenceLabel[item.type]} · animal ${item.animal_number || 'não identificado'}`,
         detail: item.note,
         authorId: item.created_by ?? null,
+        viaWhatsapp: (item as { origin_channel?: string }).origin_channel === 'whatsapp',
         createdAt: item.created_at
       })),
       ...counts.map((item) => ({
@@ -91,6 +95,7 @@ export function Admin() {
         title: item.title,
         detail: `${item.total_counted} animais contados${item.expected_total != null ? ` de ${item.expected_total} esperados` : ''}`,
         authorId: item.created_by ?? null,
+        viaWhatsapp: (item as { origin_channel?: string }).origin_channel === 'whatsapp',
         createdAt: item.created_at
       })),
       ...attempts.map((item) => ({
@@ -99,6 +104,7 @@ export function Admin() {
         title: `${item.protocol_name ?? methodLabel[item.method]} · matriz ${numberOf.get(item.animal_id) ?? ''}`,
         detail: `Início ${formatDate(item.start_date)} · ${resultLabel[item.result]}`,
         authorId: item.created_by ?? null,
+        viaWhatsapp: (item as { origin_channel?: string }).origin_channel === 'whatsapp',
         createdAt: item.created_at
       })),
       // Aplicações e pesagens em lote viram uma linha só: mesmo produto/dia e mesma pessoa.
@@ -108,6 +114,7 @@ export function Admin() {
         title: `${healthKindLabel[group[0].kind]} · ${group[0].product}`,
         detail: `${group.length} ${group.length === 1 ? 'animal' : 'animais'}: ${group.slice(0, 8).map((item) => numberOf.get(item.animal_id)).join(', ')}${group.length > 8 ? '…' : ''}`,
         authorId: group[0].created_by ?? null,
+        viaWhatsapp: (group[0] as { origin_channel?: string }).origin_channel === 'whatsapp',
         createdAt: group[0].created_at
       })),
       ...groupBatch(weighings, (item) => `${item.weighed_at}|${item.created_by}`).map((group) => ({
@@ -116,6 +123,7 @@ export function Admin() {
         title: `Pesagem de ${group.length} ${group.length === 1 ? 'animal' : 'animais'}`,
         detail: `Média ${Math.round(group.reduce((sum, item) => sum + Number(item.weight), 0) / group.length)} kg em ${formatDate(group[0].weighed_at)}`,
         authorId: group[0].created_by ?? null,
+        viaWhatsapp: (group[0] as { origin_channel?: string }).origin_channel === 'whatsapp',
         createdAt: group[0].created_at
       })),
       ...batches.map((item) => ({
@@ -124,6 +132,7 @@ export function Admin() {
         title: `Compra ${item.code}`,
         detail: [item.supplier, item.quantity ? `${item.quantity} cabeças` : null].filter(Boolean).join(' · ') || 'Lote de compra',
         authorId: item.created_by ?? null,
+        viaWhatsapp: (item as { origin_channel?: string }).origin_channel === 'whatsapp',
         createdAt: item.created_at
       }))
     ]
@@ -301,7 +310,7 @@ A pessoa perde o acesso imediatamente. Os registros que ela já fez continuam no
                             <div className={`activity-icon activity-${entry.kind}`}><Icon size={17} /></div>
                             <div className="activity-main">
                               <span className="activity-kind">{kindMeta[entry.kind].label}</span>
-                              <strong>{entry.title}</strong>
+                              <strong>{entry.title}{entry.viaWhatsapp && <span className="pill tone-emerald activity-wa">via WhatsApp</span>}</strong>
                               <p>{entry.detail}</p>
                             </div>
                             <div className="activity-meta">

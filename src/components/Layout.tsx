@@ -7,6 +7,7 @@ import {
   HeartPulse,
   LayoutDashboard,
   LogOut,
+  MessageCircle,
   Menu,
   PawPrint,
   Plus,
@@ -65,6 +66,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
     title: 'Gestão',
     items: [
       { to: '/relatorios', label: 'Documentos', icon: FileText },
+      { to: '/whatsapp', label: 'WhatsApp com IA', icon: MessageCircle, adminOnly: true },
       { to: '/administracao', label: 'Administração', icon: ShieldCheck, adminOnly: true },
       { to: '/configuracoes', label: 'Regras da fazenda', icon: Settings2, adminOnly: true }
     ]
