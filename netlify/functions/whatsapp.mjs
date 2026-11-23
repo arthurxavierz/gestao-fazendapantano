@@ -28,6 +28,7 @@ export default async (request) => {
     return new Response('Assinatura não configurada', { status: 503 })
   }
   if (signatureReady && !verifySignature(raw, request.headers.get('x-hub-signature-256'))) {
+    console.warn(`Assinatura inválida: recebida ${String(request.headers.get('x-hub-signature-256') || 'nenhuma').slice(0, 16)}..., ${raw.length} bytes. Confira WHATSAPP_APP_SECRET (Configurações do app > Básico > Chave secreta).`)
     return new Response('Assinatura inválida', { status: 401 })
   }
   if (!supabaseReady) return new Response('Banco não configurado', { status: 503 })
