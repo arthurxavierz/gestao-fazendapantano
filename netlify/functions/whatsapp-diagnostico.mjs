@@ -44,6 +44,14 @@ export default async (request) => {
     const data = await check.json().catch(() => ({}))
     return json({ app_id: appId, tamanho: raw.length, espacos_extras: raw !== secret, segredo_confere: check.status === 200, resposta: check.status === 200 ? data.name : data.error?.message })
   }
+  if (params.get('sondar') === '1') {
+    // Leituras simples (só GET) para descobrir o que o token alcança.
+    const w = params.get('waba') || ''
+    const paths = ['me?fields=id,name', `${w}?fields=id,name,owner_business_info`, `${w}/phone_numbers`, `${PHONE_ID}?fields=id,display_phone_number`]
+    const out = {}
+    for (const path of paths) out[path] = await graph(path)
+    return json({ versao: VERSION, out })
+  }
   const waba = params.get('waba') || ''
   if (!/^\d{5,20}$/.test(waba)) return json({ error: 'Informe ?waba=ID numérico.' }, 400)
 
