@@ -104,6 +104,20 @@ export function parseWebhook(body) {
   return { messages, statuses }
 }
 
+/**
+ * Envia tentando as variações do número (com e sem o 9). A Meta entrega o
+ * contato brasileiro sem o 9, mas a lista de destinatários do número de
+ * teste pode ter o cadastro com ele (erro 131030).
+ */
+async function graphTo(path, body) {
+  let result
+  for (const to of phoneVariants(body.to)) {
+    result = await graph(path, { ...body, to })
+    if (result.code !== 131030) return result
+  }
+  return result
+}
+
 async function graph(path, body) {
   let response
   try {
@@ -137,14 +151,14 @@ const clip = (text, max) => (text.length > max ? `${text.slice(0, max - 1)}…` 
 export const cloudTransport = {
   kind: 'cloud',
   async sendText(to, text, { replyTo } = {}) {
-    return graph(`${PHONE_ID}/messages`, {
+    return graphTo(`${PHONE_ID}/messages`, {
       messaging_product: 'whatsapp', recipient_type: 'individual', to, type: 'text',
       text: { body: clip(text, 4096), preview_url: false },
       ...(replyTo ? { context: { message_id: replyTo } } : {})
     })
   },
   async sendButtons(to, text, buttons, { replyTo } = {}) {
-    return graph(`${PHONE_ID}/messages`, {
+    return graphTo(`${PHONE_ID}/messages`, {
       messaging_product: 'whatsapp', recipient_type: 'individual', to, type: 'interactive',
       ...(replyTo ? { context: { message_id: replyTo } } : {}),
       interactive: {
@@ -157,14 +171,14 @@ export const cloudTransport = {
   /** Fora da janela de 24 h a Meta só aceita modelo aprovado. */
   async sendTemplate(to, text) {
     if (!TEMPLATE) return { ok: false, error: 'sem modelo aprovado (WHATSAPP_TEMPLATE_AVISO)' }
-    return graph(`${PHONE_ID}/messages`, {
+    return graphTo(`${PHONE_ID}/messages`, {
       messaging_product: 'whatsapp', to, type: 'template',
       template: { name: TEMPLATE, language: { code: TEMPLATE_LANG }, components: [{ type: 'body', parameters: [{ type: 'text', text: clip(text.replace(/\s*\n+\s*/g, ' · '), 900) }] }] }
     })
   },
   /** Dois tiques azuis e "digitando...": o peão vê na hora que a mensagem chegou. */
   async markRead(wamid) {
-    return graph(`${PHONE_ID}/messages`, { messaging_product: 'whatsapp', status: 'read', message_id: wamid, typing_indicator: { type: 'text' } })
+    return graphTo(`${PHONE_ID}/messages`, { messaging_product: 'whatsapp', status: 'read', message_id: wamid, typing_indicator: { type: 'text' } })
   },
   async downloadMedia(mediaId) {
     const meta = await fetch(`${BASE}/${mediaId}`, { headers: { Authorization: `Bearer ${TOKEN}` }, signal: AbortSignal.timeout(15000) })
