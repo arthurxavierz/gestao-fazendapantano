@@ -27,7 +27,14 @@ async function graph(path, method = 'GET') {
 export default async (request) => {
   if (!SENHA || request.headers.get('x-campo-senha') !== SENHA) return json({ error: 'Proibido.' }, 403)
   if (!TOKEN) return json({ error: 'WHATSAPP_TOKEN não configurado.' }, 503)
-  const waba = new URL(request.url).searchParams.get('waba') || ''
+  const params = new URL(request.url).searchParams
+  if (params.get('token') === '1') {
+    // Quais WABAs e permissões o token enxerga (granular_scopes.target_ids).
+    const info = await graph(`debug_token?input_token=${encodeURIComponent(TOKEN)}`)
+    const d = info.data?.data || {}
+    return json({ status: info.status, app_id: d.app_id, tipo: d.type, valido: d.is_valid, expira: d.expires_at, escopos: d.granular_scopes, erro: info.data?.error })
+  }
+  const waba = params.get('waba') || ''
   if (!/^\d{5,20}$/.test(waba)) return json({ error: 'Informe ?waba=ID numérico.' }, 400)
 
   if (request.method === 'POST') {
