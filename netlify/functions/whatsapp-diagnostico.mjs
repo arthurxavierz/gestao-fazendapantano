@@ -34,6 +34,16 @@ export default async (request) => {
     const d = info.data?.data || {}
     return json({ status: info.status, app_id: d.app_id, tipo: d.type, valido: d.is_valid, expira: d.expires_at, escopos: d.granular_scopes, erro: info.data?.error })
   }
+  if (params.get('segredo') === '1') {
+    // Valida WHATSAPP_APP_SECRET na própria Meta (token de app = id|segredo), sem expor o valor.
+    const info = await graph(`debug_token?input_token=${encodeURIComponent(TOKEN)}`)
+    const appId = info.data?.data?.app_id
+    const secret = (process.env.WHATSAPP_APP_SECRET || '').trim()
+    const raw = process.env.WHATSAPP_APP_SECRET || ''
+    const check = await fetch(`https://graph.facebook.com/${VERSION}/${appId}?fields=name&access_token=${encodeURIComponent(`${appId}|${secret}`)}`, { signal: AbortSignal.timeout(15000) })
+    const data = await check.json().catch(() => ({}))
+    return json({ app_id: appId, tamanho: raw.length, espacos_extras: raw !== secret, segredo_confere: check.status === 200, resposta: check.status === 200 ? data.name : data.error?.message })
+  }
   const waba = params.get('waba') || ''
   if (!/^\d{5,20}$/.test(waba)) return json({ error: 'Informe ?waba=ID numérico.' }, 400)
 
